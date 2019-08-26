@@ -35,6 +35,15 @@ MONTH_REPLACE = {
   'декабря' => 'Dec'
 }
 
+class HeaderError < ArgumentError
+  attr_reader :complaints
+
+  def initialize(complaints, msg = 'Bad header')
+    @complaints = complaints
+    super(msg)
+  end
+end
+
 def parse_date(date_string)
   date_string = date_string.strip
 
@@ -61,6 +70,70 @@ end
 
 def parse_location(location_string)
   location_string
+end
+
+def process_normal_header(match)
+  date = parse_date match['date']
+  start_time = parse_time match['start_time']
+  end_time = parse_time match['end_time']
+  characters = parse_characters match['chara']
+  location = parse_location match['location']
+
+  complaints = []
+
+  unless date
+    complaints << "Непонятная дата: \"#{match['date']}\""
+  end
+
+  unless start_time
+    complaints << 'Отлупить за кривое время начала: "' +
+                  match['start_time'] + '"'
+  end
+
+  unless end_time
+    complaints << 'Отлупить за кривое время конца: "' +
+                  match['end_time'] + '"'
+  end
+
+  unless characters
+    complaints << 'Отлупить за кривой список персонажей: \"' +
+                  match['chara'] + '"'
+  end
+
+  unless location
+    complaints << 'Отлупить за кривое место действия: \"' +
+                  match['location'] + '"'
+  end
+
+  raise HeaderError.new(complaints), 'Bad Header' unless complaints.empty?
+
+  [date, start_time, end_time, characters, location]
+end
+
+def process_flashback_header(match)
+  date = parse_date match['date']
+  characters = parse_characters match['chara']
+  location = parse_location match['location']
+
+  complaints = []
+
+  unless date
+    complaints << "Непонятная дата: \"#{match['date']}\""
+  end
+
+  unless characters
+    complaints << 'Отлупить за кривой список персонажей: \"' +
+                  match['chara'] + '"'
+  end
+
+  unless location
+    complaints << 'Отлупить за кривое место действия: \"' +
+                  match['location'] + '"'
+  end
+
+  raise HeaderError.new(complaints), 'Bad Header' unless complaints.empty?
+
+  [date, characters, location]
 end
 
 if $PROGRAM_NAME == __FILE__
@@ -117,43 +190,13 @@ if $PROGRAM_NAME == __FILE__
             6\.\ ?Место\ действия:\ *(?<location>.+?)\ *\.?<br\ />.*
           }x))
 
-            date = parse_date match['date']
-            start_time = parse_time match['start_time']
-            end_time = parse_time match['end_time']
-            characters = parse_characters match['chara']
-            location = parse_location match['location']
-
-            complaints = []
-
-            unless date
-              complaints << "Непонятная дата: \"#{match['date']}\""
-            end
-
-            unless start_time
-              complaints << 'Отлупить за кривое время начала: "' +
-                            match['start_time'] + '"'
-            end
-
-            unless end_time
-              complaints << 'Отлупить за кривое время конца: "' +
-                            match['end_time'] + '"'
-            end
-
-            unless characters
-              complaints << 'Отлупить за кривой список персонажей: \"' +
-                            match['chara'] + '"'
-            end
-
-            unless location
-              complaints << 'Отлупить за кривое место действия: \"' +
-                            match['location'] + '"'
-            end
-
-            unless complaints.empty?
-              puts <<~EOS
+            begin
+              date, start_time, end_time, characters, location = process_normal_header(match)
+            rescue HeaderError => e
+              puts <<~BAD_HEADER
                 Плохое оформление шапки эпизода #{episode_name} #{episode_link}
-                #{complaints.join("\n")}
-              EOS
+                #{e.complaints.join("\n")}
+              BAD_HEADER
               next
             end
 
@@ -170,25 +213,11 @@ if $PROGRAM_NAME == __FILE__
           }x))
 
             begin
-              date_string = match['date'].strip
-              case date_string
-              when /^\d?\d\.\d?\d\.\d\d$/
-                date = DateTime.strptime(date_string, '%d.%m.%y')
-              when /^\d?\d\.\d?\d\.\d{4}$/
-                date = DateTime.strptime(date_string, '%d.%m.%Y')
-              when /^\d?\d [^ ]+ \d{4}$/
-                date_string.gsub!(Regexp.union(month_replace.keys), month_replace)
-                date = DateTime.strptime(date_string, '%d %b %Y')
-              else
-                raise ArgumentError
-              end
-
-              characters = match['chara'].split(/, ?/)
-              location = match['location']
-            rescue ArgumentError
+              date, characters, location = process_flashback_header(match)
+            rescue HeaderError => e
               puts <<~BAD_HEADER
                 Плохое оформление шапки эпизода #{episode_name} #{episode_link}
-                #{match.named_captures.to_s.gsub(/(".*?"=>".*?"), /, '\1' + "\n ")}
+                #{e.complaints.join("\n")}
               BAD_HEADER
               next
             end
