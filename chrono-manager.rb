@@ -82,6 +82,10 @@ if $PROGRAM_NAME == __FILE__
 
         if in_header && (match = line.gsub(%r{</?strong>}, '').match(%r{
           1\.\ ?Дата:(?<date>.+?)(?:года)?\.?<br\ />.*?
+          2\.\ ?Время\ старта:(?<start_time>.+?)<br\ />.*?
+          3\.\ ?Время\ окончания:(?<end_time>.+?)<br\ />.*
+          5\.\ ?Персонажи:\ ?(?<chara>.+?)\.?<br\ />.*
+          6\.\ ?Место\ действия:(?<location>.+?)<br\ />.*
         }x))
           date_string = match['date'].strip
           case date_string
@@ -96,6 +100,23 @@ if $PROGRAM_NAME == __FILE__
             puts "!! #{date_string}: #{episode_link}"
             date = DateTime.new(0, 1, 1)
           end
+
+          begin
+            start_time = Time.parse(match['start_time'].strip.gsub('.', ':'))
+            end_time = Time.parse(match['end_time'].strip.gsub('.', ':'))
+            characters = match['chara'].split(/, ?/)
+            location = match['location']
+          rescue ArgumentError
+            puts "!! #{match.named_captures}: #{episode_link}"
+            next
+          end
+
+          puts episode_name
+          puts "Дата: #{date.strftime('%d.%m.%Y')}"
+          puts "Начало: #{start_time.strftime('%H:%M')}"
+          puts "Конец: #{end_time.strftime('%H:%M')}"
+          puts "Персонажи: #{characters}"
+          puts "Место: #{location}"
         end
       end
     end
