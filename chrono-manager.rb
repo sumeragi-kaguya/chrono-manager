@@ -290,6 +290,7 @@ if $PROGRAM_NAME == __FILE__
             end
 
             puts episode_name
+            puts "Id темы: #{topic_id}"
             puts "Дата: #{date.strftime('%d.%m.%Y')}"
             puts "Начало: #{start_time.strftime('%H:%M')}"
             puts "Конец: #{end_time.strftime('%H:%M')}"
@@ -312,6 +313,7 @@ if $PROGRAM_NAME == __FILE__
             end
 
             puts episode_name
+            puts topic_id
             puts "Дата: #{date.strftime('%d.%m.%Y')}"
             puts "Персонажи: #{characters.values}"
             puts "Место: #{location}"
