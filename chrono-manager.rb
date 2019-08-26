@@ -39,7 +39,7 @@ if $PROGRAM_NAME == __FILE__
           last_page = match[1] == match[2]
         end
 
-        if (match = line.match(%r{<td class="tcr"><a href="(http://codegeass.ru/viewtopic.php?[^"#]+)(?:#[^"]+)?">([^<]+)</a>}))
+        if (match = line.match(%r{<td class="tcr"><a href="(http://codegeass.ru/viewtopic.php\?[^"#&]+)(?:[^"]*)">([^<]+)</a>}))
           episode_link = match[1].gsub('&amp;', '&')
           episodes << episode_link
         end
