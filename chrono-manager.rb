@@ -55,6 +55,14 @@ rescue ArgumentError
   nil
 end
 
+def parse_characters(chara_string)
+  chara_string.split(/, ?/)
+end
+
+def parse_location(location_string)
+  location_string
+end
+
 if $PROGRAM_NAME == __FILE__
   Net::HTTP.start('codegeass.ru') do |http|
     episodes = []
@@ -112,9 +120,10 @@ if $PROGRAM_NAME == __FILE__
             date = parse_date match['date']
             start_time = parse_time match['start_time']
             end_time = parse_time match['end_time']
+            characters = parse_characters match['chara']
+            location = parse_location match['location']
+
             begin
-              characters = match['chara'].split(/, ?/)
-              location = match['location']
             rescue ArgumentError
               puts <<~EOS
               Плохое оформление шапки эпизода #{episode_name} #{episode_link}
