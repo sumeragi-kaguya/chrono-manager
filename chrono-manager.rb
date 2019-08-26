@@ -65,7 +65,8 @@ rescue ArgumentError
 end
 
 def parse_characters(chara_string)
-  chara_string.split(/, ?/)
+  chara_string.gsub!(/\(.*?\)/, '')
+  chara_string.split(/ *, */)
 end
 
 def parse_location(location_string)
