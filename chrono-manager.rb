@@ -80,45 +80,85 @@ if $PROGRAM_NAME == __FILE__
           next
         end
 
-        if in_header && (match = line.gsub(%r{</?strong>}, '').match(%r{
-          1\.\ ?Дата:(?<date>.+?)(?:года)?\.?<br\ />.*?
-          2\.\ ?Время\ старта:(?<start_time>.+?)<br\ />.*?
-          3\.\ ?Время\ окончания:(?<end_time>.+?)<br\ />.*
-          5\.\ ?Персонажи:\ ?(?<chara>.+?)\.?<br\ />.*
-          6\.\ ?Место\ действия:(?<location>.+?)<br\ />.*
-        }x))
-          date_string = match['date'].strip
-          case date_string
-          when /^\d?\d\.\d?\d\.\d\d$/
-            date = DateTime.strptime(date_string, '%d.%m.%y')
-          when /^\d?\d\.\d?\d\.\d{4}$/
-            date = DateTime.strptime(date_string, '%d.%m.%Y')
-          when /^\d?\d [^ ]+ \d{4}$/
-            date_string.gsub!(Regexp.union(month_replace.keys), month_replace)
-            date = DateTime.strptime(date_string, '%d %b %Y')
-          else
-            puts "!! #{date_string}: #{episode_link}"
-            date = DateTime.new(0, 1, 1)
-          end
+        if in_header
+          if (match = line.gsub(%r{</?strong>}, '').match(%r{
+            1\.\ ?Дата:(?<date>.+?)(?:года)?\.?<br\ />.*?
+            2\.\ ?Время\ старта:(?<start_time>.+?)<br\ />.*?
+            3\.\ ?Время\ окончания:(?<end_time>.+?)<br\ />.*
+            5\.\ ?Персонажи:\ ?(?<chara>.+?)\.?<br\ />.*
+            6\.\ ?Место\ действия:(?<location>.+?)<br\ />.*
+          }x))
 
-          begin
-            start_time = Time.parse(match['start_time'].strip.gsub('.', ':'))
-            end_time = Time.parse(match['end_time'].strip.gsub('.', ':'))
-            characters = match['chara'].split(/, ?/)
-            location = match['location']
-          rescue ArgumentError
-            puts "!! #{match.named_captures}: #{episode_link}"
-            next
-          end
+            begin
+              date_string = match['date'].strip
+              case date_string
+              when /^\d?\d\.\d?\d\.\d\d$/
+                date = DateTime.strptime(date_string, '%d.%m.%y')
+              when /^\d?\d\.\d?\d\.\d{4}$/
+                date = DateTime.strptime(date_string, '%d.%m.%Y')
+              when /^\d?\d [^ ]+ \d{4}$/
+                date_string.gsub!(Regexp.union(month_replace.keys), month_replace)
+                date = DateTime.strptime(date_string, '%d %b %Y')
+              else
+                raise ArgumentError
+              end
 
-          puts episode_name
-          puts "Дата: #{date.strftime('%d.%m.%Y')}"
-          puts "Начало: #{start_time.strftime('%H:%M')}"
-          puts "Конец: #{end_time.strftime('%H:%M')}"
-          puts "Персонажи: #{characters}"
-          puts "Место: #{location}"
+              start_time = Time.parse(match['start_time'].strip.gsub('.', ':'))
+              end_time = Time.parse(match['end_time'].strip.gsub('.', ':'))
+              characters = match['chara'].split(/, ?/)
+              location = match['location']
+            rescue ArgumentError
+              puts <<~EOS
+              Плохое оформление шапки эпизода #{episode_name} #{episode_link}
+              #{match.named_captures.to_s.gsub(/(".*?"=>".*?"), /, '\1' + "\n ")}
+              EOS
+              next
+            end
+
+            puts episode_name
+            puts "Дата: #{date.strftime('%d.%m.%Y')}"
+            puts "Начало: #{start_time.strftime('%H:%M')}"
+            puts "Конец: #{end_time.strftime('%H:%M')}"
+            puts "Персонажи: #{characters}"
+            puts "Место: #{location}"
+          elsif (match = line.gsub(%r{</?strong>}, '').match(%r{
+            1\.\ ?Дата:(?<date>.+?)(?:года)?\.?<br\ />.*?
+            2\.\ ?Персонажи:\ ?(?<chara>.+?)\.?<br\ />.*
+            3\.\ ?Место\ действия:(?<location>.+?)<br\ />.*
+          }x))
+
+            begin
+              date_string = match['date'].strip
+              case date_string
+              when /^\d?\d\.\d?\d\.\d\d$/
+                date = DateTime.strptime(date_string, '%d.%m.%y')
+              when /^\d?\d\.\d?\d\.\d{4}$/
+                date = DateTime.strptime(date_string, '%d.%m.%Y')
+              when /^\d?\d [^ ]+ \d{4}$/
+                date_string.gsub!(Regexp.union(month_replace.keys), month_replace)
+                date = DateTime.strptime(date_string, '%d %b %Y')
+              else
+                raise ArgumentError
+              end
+
+              characters = match['chara'].split(/, ?/)
+              location = match['location']
+            rescue ArgumentError
+              puts <<~BAD_HEADER
+                Плохое оформление шапки эпизода #{episode_name} #{episode_link}
+                #{match.named_captures.to_s.gsub(/(".*?"=>".*?"), /, '\1' + "\n ")}
+              BAD_HEADER
+              next
+            end
+
+            puts episode_name
+            puts "Дата: #{date.strftime('%d.%m.%Y')}"
+            puts "Персонажи: #{characters}"
+            puts "Место: #{location}"
+          end
         end
       end
+      puts
     end
   end
 end
