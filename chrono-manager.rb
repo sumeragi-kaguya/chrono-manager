@@ -17,6 +17,7 @@
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
 require 'net/http'
+require 'set'
 require 'time'
 
 PURGATORY_LINK = 'http://codegeass.ru/viewforum.php?id=89'
@@ -88,7 +89,39 @@ CHARS = {
   'Чарльз зи Британия' => 74,
   'Шарли Фенетт' => 6,
   'Элис Блекберри' => 239,
-  'Элис' => 239
+  'Элис' => 239,
+  'Эмия Атсуко' => 216
+}.freeze
+CHARS_ID = {
+  589 => 292,
+  603 => 301,
+  346 => 216
+}
+TIMEZONES = {
+  'Пендрагон' => 0,
+  'Нео-Токио' => 16,
+  'Рим, Ватикан' => 8,
+  'СБИ, 11 сектор' => 16,
+  'Российская Империя, Москва' => 10,
+  'Москва' => 10,
+  'Санкт-Петербург' => 10,
+  'Павлодар' => 13,
+  'Сальвадор, Бразилия' => 1,
+  '11 сектор' => 16,
+  'Священная Британская Империя, 11 сектор' => 16,
+  'Восточный Тимор' => 15,
+  'Евросоюз, Франция' => 8,
+  'Франция' => 8,
+  'Мадагаскар' => 10,
+  'Британия, герцогство Висконсин' => 1,
+  'Висконсин' => 1,
+  'Претория' => 9,
+  'Евросоюз, Российская Империя, Выборг' => 10,
+  'Китай' => 15,
+  'Индия, Дели' => 12,
+  'Гонконг' => 15,
+  'Кронштадт' => 10,
+  'Колумбия' => 2,
 }.freeze
 
 class HeaderError < ArgumentError
@@ -128,36 +161,47 @@ def parse_characters(chars_string)
   chars = chars_string.split(/ *, */)
 
   char_map = {}
+  unknowns = []
 
   chars.each do |char_string|
+    char_string.strip!
+
     if (match = char_string.strip.match(%r{
     <a\ href=".*?\?id=(?<id>\d+)".*?>(?<name>.*?)</a>
     }x))
-      char_map[match['name']] = match['id']
+      char_map[match['name'].strip] = CHARS_ID[match['id'].to_i]
+    elsif CHARS[char_string]
+      char_map[char_string] = CHARS[char_string]
     else
-      char_map[char_string.strip] = nil
-    end
-  end
-
-  unknowns = []
-
-  char_map.each do |key, value|
-    if !CHARS[key]
-      puts("#{key} is unknown")
-      unknowns << key
-    else
-      char_map[key] = CHARS[key]
-    # Resolve via profile!!
-    # elsif value != CHARS[key]
-    #   raise BadCharRef, "Wrong name for this char id! #{key} should be #{CHARS[key]}, not #{value}"
+      unknowns << char_string
     end
   end
 
   [char_map, unknowns]
 end
 
-def parse_location(location_string)
-  location_string
+def parse_tz(location_string)
+  tz = TIMEZONES[location_string]
+
+  unless tz
+    tz = []
+    used_tzs = Set[]
+    TIMEZONES.each do |region, timezone|
+      next unless location_string.downcase.include?(region.downcase) &&
+                  !used_tzs.include?(timezone)
+
+      tz << [timezone, region]
+      used_tzs << timezone
+    end
+
+    if tz.empty?
+      tz = nil
+    elsif tz.length == 1
+      tz = tz[0]
+    end
+  end
+
+  tz
 end
 
 def process_normal_header(match)
@@ -165,7 +209,7 @@ def process_normal_header(match)
   start_time = parse_time match['start_time']
   end_time = parse_time match['end_time']
   characters, unknown_characters = parse_characters match['chara']
-  location = parse_location match['location']
+  tz = parse_tz match['location']
 
   complaints = []
 
@@ -188,20 +232,20 @@ def process_normal_header(match)
                   match['chara'] + '"'
   end
 
-  unless location
-    complaints << 'Отлупить за кривое место действия: \"' +
-                  match['location'] + '"'
-  end
+  # unless tz
+  #   complaints << 'Отлупить за кривое место действия: \"' +
+  #                 match['location'] + '"'
+  # end
 
   raise HeaderError.new(complaints), 'Bad Header' unless complaints.empty?
 
-  [date, start_time, end_time, characters, location]
+  [date, start_time, end_time, characters, unknown_characters, tz]
 end
 
 def process_flashback_header(match)
   date = parse_date match['date']
   characters, unknown_characters = parse_characters match['chara']
-  location = parse_location match['location']
+  tz = parse_tz match['location']
 
   complaints = []
 
@@ -214,17 +258,31 @@ def process_flashback_header(match)
                   match['chara'] + '"'
   end
 
-  unless location
-    complaints << 'Отлупить за кривое место действия: \"' +
-                  match['location'] + '"'
-  end
+  # unless tz
+  #   complaints << 'Отлупить за кривое место действия: \"' +
+  #                 match['location'] + '"'
+  # end
 
   raise HeaderError.new(complaints), 'Bad Header' unless complaints.empty?
 
-  [date, characters, location]
+  [date, characters, unknown_characters, tz]
+end
+
+def pick_tz_guess_string(tz)
+  if tz == nil
+    'не получилось угадать часовой пояс'
+  elsif tz.is_a?(Integer)
+    'точное совпадение'
+  elsif !tz[0].respond_to?(:length)
+    'одно неточное совпадение'
+  else
+    'несколько неточных совпадений'
+  end
 end
 
 if $PROGRAM_NAME == __FILE__
+  file = File.open('tmp.txt', 'w')
+
   Net::HTTP.start('codegeass.ru') do |http|
     episodes = []
 
@@ -252,12 +310,18 @@ if $PROGRAM_NAME == __FILE__
       link = PURGATORY_LINK + "&p=#{page}"
     end
 
+    i = 0
+
+    errors = []
+    first = true
+
     episodes.each do |episode_link|
       topic_id = episode_link[/\?id=([0-9]+)/, 1].to_i
       episode_name = nil
 
       page = http.get(episode_link)
       body = page.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
+
       in_header = false
       body.each_line do |line|
         if !episode_name && (match = line.match(%r{<h1><span>(.+)</span></h1>}))
@@ -277,50 +341,70 @@ if $PROGRAM_NAME == __FILE__
             5\.\ ?Персонажи:\ *(?<chara>.+?)\ *\.?\ *<br\ />.*
             6\.\ ?Место\ действия:\ *(?<location>.+?)\ *\.?<br\ />.*
           }x))
+            i += 1 # TODO: remove
 
             begin
-              (date, start_time, end_time, characters, location) =
+              (date, start_time, end_time, characters, unknown_characters, tz) =
                 process_normal_header(match)
             rescue HeaderError => e
-              puts <<~BAD_HEADER
+              errors << <<~BAD_HEADER
                 Плохое оформление шапки эпизода #{episode_name} #{episode_link}
                 #{e.complaints.join("\n")}
               BAD_HEADER
               next
+                #{match.named_captures.to_s.gsub(/(".*?"=>".*?"), /, '\1' + "\n ")}
             end
 
-            puts episode_name
-            puts "Id темы: #{topic_id}"
-            puts "Дата: #{date.strftime('%d.%m.%Y')}"
-            puts "Начало: #{start_time.strftime('%H:%M')}"
-            puts "Конец: #{end_time.strftime('%H:%M')}"
-            puts "Персонажи: #{characters.values}"
-            puts "Место: #{location}"
+            file.puts "\n------\n\n" unless first
+            first = false
+            file.puts "Название: #{episode_name}"
+            file.puts "Ссылка: #{episode_link}"
+            file.puts "Id темы: #{topic_id}"
+            file.puts "Дата: #{date.strftime('%d.%m.%Y')}"
+            file.puts "Начало: #{start_time.strftime('%H:%M')}"
+            file.puts "Конец: #{end_time.strftime('%H:%M')}"
+            file.puts "Персонажи: #{characters.values} (#{characters.keys})"
+            file.puts 'Неизвестные персонажи (возможно, стоит их добавить): ' \
+                 "#{unknown_characters}" if !unknown_characters.empty?
+            file.puts "Место: #{match['location']}"
+            file.puts "Часовой пояс: #{tz ? tz : 'nil'} (#{pick_tz_guess_string(tz)})"
           elsif (match = line.gsub(%r{</?strong>}, '').match(%r{
             1\.\ ?Дата:\ *(?<date>.+?)(?:года)?\ *\.?<br\ />.*?
             2\.\ ?Персонажи:\ *(?<chara>.+?)\ *\.?<br\ />.*
             3\.\ ?Место\ действия:\ *(?<location>.+?)\ *\.?<br\ />.*
           }x))
+            i += 1 # TODO: remove
 
             begin
-              date, characters, location = process_flashback_header(match)
+              date, characters, unknown_characters, tz =
+                process_flashback_header(match)
             rescue HeaderError => e
-              puts <<~BAD_HEADER
+              errors << <<~BAD_HEADER
                 Плохое оформление шапки эпизода #{episode_name} #{episode_link}
                 #{e.complaints.join("\n")}
               BAD_HEADER
               next
+                #{match.named_captures.to_s.gsub(/(".*?"=>".*?"), /, '\1' + "\n ")}
             end
 
-            puts episode_name
-            puts topic_id
-            puts "Дата: #{date.strftime('%d.%m.%Y')}"
-            puts "Персонажи: #{characters.values}"
-            puts "Место: #{location}"
+            file.puts "\n------\n\n" unless first
+            first = false
+            file.puts "Название: #{episode_name}"
+            file.puts "Ссылка: #{episode_link}"
+            file.puts "Id темы: #{topic_id}"
+            file.puts "Дата: #{date.strftime('%d.%m.%Y')}"
+            file.puts "Персонажи: #{characters.values} (#{characters.keys})"
+            file.puts 'Неизвестные персонажи (возможно, стоит их добавить): ' \
+                 "#{unknown_characters}" if !unknown_characters.empty?
+            file.puts "Место: #{match['location']}"
+            file.puts "Часовой пояс: #{tz} (#{pick_tz_guess_string(tz)})"
           end
         end
       end
-      puts
     end
+    file.puts "\n------\n\n"
+    file.puts errors.join("\n\n")
+    file.puts "\n------\n\n"
+    pp i
   end
 end
