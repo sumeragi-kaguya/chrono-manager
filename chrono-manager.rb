@@ -20,6 +20,20 @@ require 'net/http'
 require 'time'
 
 purgatory_link = 'http://codegeass.ru/viewforum.php?id=89'
+month_replace = {
+  'января' => 'Jan',
+  'февраля' => 'Feb',
+  'марта' => 'Mar',
+  'апреля' => 'Apr',
+  'мая' => 'May',
+  'июня' => 'Jun',
+  'июля' => 'Jul',
+  'августа' => 'Aug',
+  'сентября' => 'Sep',
+  'октября' => 'Oct',
+  'ноября' => 'Nov',
+  'декабря' => 'Dec'
+}
 
 if $PROGRAM_NAME == __FILE__
   Net::HTTP.start('codegeass.ru') do |http|
@@ -49,6 +63,41 @@ if $PROGRAM_NAME == __FILE__
       link = purgatory_link + "&p=#{page}"
     end
 
-    pp episodes
+    episodes.each do |episode_link|
+      topic_id = episode_link[/\?id=([0-9]+)/, 1].to_i
+      episode_name = nil
+
+      page = http.get(episode_link)
+      body = page.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
+      in_header = false
+      body.each_line do |line|
+        if !episode_name && (match = line.match(%r{<h1><span>(.+)</span></h1>}))
+          episode_name = match[1]
+        end
+
+        if episode_name && (match = line.match(/<div id="p([0-9]+)" class="post(?: (topicpost|altstyle))?"/))
+          in_header = match[2] == 'topicpost'
+          next
+        end
+
+        if in_header && (match = line.gsub(%r{</?strong>}, '').match(%r{
+          1\.\ ?Дата:(?<date>.+?)(?:года)?\.?<br\ />.*?
+        }x))
+          date_string = match['date'].strip
+          case date_string
+          when /^\d?\d\.\d?\d\.\d\d$/
+            date = DateTime.strptime(date_string, '%d.%m.%y')
+          when /^\d?\d\.\d?\d\.\d{4}$/
+            date = DateTime.strptime(date_string, '%d.%m.%Y')
+          when /^\d?\d [^ ]+ \d{4}$/
+            date_string.gsub!(Regexp.union(month_replace.keys), month_replace)
+            date = DateTime.strptime(date_string, '%d %b %Y')
+          else
+            puts "!! #{date_string}: #{episode_link}"
+            date = DateTime.new(0, 1, 1)
+          end
+        end
+      end
+    end
   end
 end
