@@ -123,11 +123,36 @@ if $PROGRAM_NAME == __FILE__
             characters = parse_characters match['chara']
             location = parse_location match['location']
 
-            begin
-            rescue ArgumentError
+            complaints = []
+
+            unless date
+              complaints << "Непонятная дата: \"#{match['date']}\""
+            end
+
+            unless start_time
+              complaints << 'Отлупить за кривое время начала: "' +
+                            match['start_time'] + '"'
+            end
+
+            unless end_time
+              complaints << 'Отлупить за кривое время конца: "' +
+                            match['end_time'] + '"'
+            end
+
+            unless characters
+              complaints << 'Отлупить за кривой список персонажей: \"' +
+                            match['chara'] + '"'
+            end
+
+            unless location
+              complaints << 'Отлупить за кривое место действия: \"' +
+                            match['location'] + '"'
+            end
+
+            unless complaints.empty?
               puts <<~EOS
-              Плохое оформление шапки эпизода #{episode_name} #{episode_link}
-              #{match.named_captures.to_s.gsub(/(".*?"=>".*?"), /, '\1' + "\n ")}
+                Плохое оформление шапки эпизода #{episode_name} #{episode_link}
+                #{complaints.join("\n")}
               EOS
               next
             end
