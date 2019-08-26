@@ -33,7 +33,63 @@ MONTH_REPLACE = {
   'октября' => 'Oct',
   'ноября' => 'Nov',
   'декабря' => 'Dec'
-}
+}.freeze
+MINIMAL_CHAR_CHRONO_LEN = 2
+CHARS = {
+  "Рианнон О'Нейл" => 58,
+  'Emiya Atsuko' => 216,
+  'Emmerich Meyer' => 292,
+  'M.M.' => 258,
+  'N.N' => 64,
+  'Wayne Stranszberg' => 301,
+  'Александр Крестовский' => 26,
+  'Алексей Ланской' => 253,
+  'Анжела Лаврова' => 129,
+  'Анна Клемент' => 87,
+  'Аня Альстрейм' => 33,
+  'Астрид Гудбранд' => 302,
+  'Бен Кламски' => 278,
+  'Владимир Макаров' => 29,
+  'Гвиневра су Британия' => 36,
+  'Джино Вайнберг' => 72,
+  'Дункан Кэмпбелл' => 71,
+  'Зеро' => 1,
+  'Иван Полозов' => 265,
+  'Кагуя Сумераги' => 49,
+  'Каллен Кодзуки' => 3,
+  'Каллен Козуки' => 3,
+  'Карин нэ Британия' => 189,
+  'Кассандра Бота' => 162,
+  'Ким Сайрумов' => 300,
+  'Кловис ла Британия' => 245,
+  'Командующий Кобра' => 270,
+  'Константин Уайт' => 297,
+  'Ллойд Асплунд' => 10,
+  'Лучиано Брэдли' => 167,
+  'Марианна Британская' => 273,
+  'Марианна ви Британия' => 273,
+  'Марика Сореси' => 259,
+  'Мария Вуйцик' => 257,
+  'Миллай' => 2,
+  'Мима' => 258,
+  'Митт Траун' => 103,
+  'Наннали' => 7,
+  'Одиссей ю Британия' => 48,
+  'Павел Романов' => 188,
+  'Пьер Мао' => 305,
+  'Пьер Эжен Мао' => 305,
+  'Ренли ла Британия' => 11,
+  'Сесиль Круми' => 148,
+  'Сольф Кимбли' => 243,
+  'Соня Эльтнова' => 277,
+  'Станислав Мальченко' => 90,
+  'Тянцзы' => 47,
+  'Чарльз Британский' => 74,
+  'Чарльз зи Британия' => 74,
+  'Шарли Фенетт' => 6,
+  'Элис Блекберри' => 239,
+  'Элис' => 239
+}.freeze
 
 class HeaderError < ArgumentError
   attr_reader :complaints
@@ -42,6 +98,9 @@ class HeaderError < ArgumentError
     @complaints = complaints
     super(msg)
   end
+end
+
+class BadCharRef < ArgumentError
 end
 
 def parse_date(date_string)
@@ -64,9 +123,37 @@ rescue ArgumentError
   nil
 end
 
-def parse_characters(chara_string)
-  chara_string.gsub!(/\(.*?\)/, '')
-  chara_string.split(/ *, */)
+def parse_characters(chars_string)
+  chars_string = chars_string.gsub(/\(.*?\)/, '').gsub(/&nbsp;/, ' ')
+  chars = chars_string.split(/ *, */)
+
+  char_map = {}
+
+  chars.each do |char_string|
+    if (match = char_string.strip.match(%r{
+    <a\ href=".*?\?id=(?<id>\d+)".*?>(?<name>.*?)</a>
+    }x))
+      char_map[match['name']] = match['id']
+    else
+      char_map[char_string.strip] = nil
+    end
+  end
+
+  unknowns = []
+
+  char_map.each do |key, value|
+    if !CHARS[key]
+      puts("#{key} is unknown")
+      unknowns << key
+    else
+      char_map[key] = CHARS[key]
+    # Resolve via profile!!
+    # elsif value != CHARS[key]
+    #   raise BadCharRef, "Wrong name for this char id! #{key} should be #{CHARS[key]}, not #{value}"
+    end
+  end
+
+  [char_map, unknowns]
 end
 
 def parse_location(location_string)
@@ -77,7 +164,7 @@ def process_normal_header(match)
   date = parse_date match['date']
   start_time = parse_time match['start_time']
   end_time = parse_time match['end_time']
-  characters = parse_characters match['chara']
+  characters, unknown_characters = parse_characters match['chara']
   location = parse_location match['location']
 
   complaints = []
@@ -113,7 +200,7 @@ end
 
 def process_flashback_header(match)
   date = parse_date match['date']
-  characters = parse_characters match['chara']
+  characters, unknown_characters = parse_characters match['chara']
   location = parse_location match['location']
 
   complaints = []
@@ -187,12 +274,13 @@ if $PROGRAM_NAME == __FILE__
             1\.\ ?Дата:\ *(?<date>.+?)(?:года)?\ *\.?<br\ />.*?
             2\.\ ?Время\ старта:\ *(?<start_time>.+?)\ *\.?<br\ />.*?
             3\.\ ?Время\ окончания:\ *(?<end_time>.+?)\ *\.?<br\ />.*
-            5\.\ ?Персонажи:\ *(?<chara>.+?)\ *\.?<br\ />.*
+            5\.\ ?Персонажи:\ *(?<chara>.+?)\ *\.?\ *<br\ />.*
             6\.\ ?Место\ действия:\ *(?<location>.+?)\ *\.?<br\ />.*
           }x))
 
             begin
-              date, start_time, end_time, characters, location = process_normal_header(match)
+              (date, start_time, end_time, characters, location) =
+                process_normal_header(match)
             rescue HeaderError => e
               puts <<~BAD_HEADER
                 Плохое оформление шапки эпизода #{episode_name} #{episode_link}
@@ -205,7 +293,7 @@ if $PROGRAM_NAME == __FILE__
             puts "Дата: #{date.strftime('%d.%m.%Y')}"
             puts "Начало: #{start_time.strftime('%H:%M')}"
             puts "Конец: #{end_time.strftime('%H:%M')}"
-            puts "Персонажи: #{characters}"
+            puts "Персонажи: #{characters.values}"
             puts "Место: #{location}"
           elsif (match = line.gsub(%r{</?strong>}, '').match(%r{
             1\.\ ?Дата:\ *(?<date>.+?)(?:года)?\ *\.?<br\ />.*?
@@ -225,7 +313,7 @@ if $PROGRAM_NAME == __FILE__
 
             puts episode_name
             puts "Дата: #{date.strftime('%d.%m.%Y')}"
-            puts "Персонажи: #{characters}"
+            puts "Персонажи: #{characters.values}"
             puts "Место: #{location}"
           end
         end
