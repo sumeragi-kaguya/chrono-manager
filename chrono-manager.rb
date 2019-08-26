@@ -19,8 +19,8 @@
 require 'net/http'
 require 'time'
 
-purgatory_link = 'http://codegeass.ru/viewforum.php?id=89'
-month_replace = {
+PURGATORY_LINK = 'http://codegeass.ru/viewforum.php?id=89'
+MONTH_REPLACE = {
   'января' => 'Jan',
   'февраля' => 'Feb',
   'марта' => 'Mar',
@@ -44,7 +44,7 @@ def parse_date(date_string)
   when /^\d?\d\.\d?\d\.\d{4}$/
     DateTime.strptime(date_string, '%d.%m.%Y')
   when /^\d?\d [^ ]+ \d{4}$/
-    date_string.gsub!(Regexp.union(month_replace.keys), month_replace)
+    date_string.gsub!(Regexp.union(MONTH_REPLACE.keys), MONTH_REPLACE)
     DateTime.strptime(date_string, '%d %b %Y')
   end
 end
@@ -53,7 +53,7 @@ if $PROGRAM_NAME == __FILE__
   Net::HTTP.start('codegeass.ru') do |http|
     episodes = []
 
-    link = purgatory_link
+    link = PURGATORY_LINK
     page = 1
     last_page = false
 
@@ -74,7 +74,7 @@ if $PROGRAM_NAME == __FILE__
       end
 
       page += 1
-      link = purgatory_link + "&p=#{page}"
+      link = PURGATORY_LINK + "&p=#{page}"
     end
 
     episodes.each do |episode_link|
