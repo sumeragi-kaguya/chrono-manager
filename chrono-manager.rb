@@ -49,6 +49,12 @@ def parse_date(date_string)
   end
 end
 
+def parse_time(time_string)
+  Time.parse(time_string.strip.gsub('.', ':'))
+rescue ArgumentError
+  nil
+end
+
 if $PROGRAM_NAME == __FILE__
   Net::HTTP.start('codegeass.ru') do |http|
     episodes = []
@@ -104,9 +110,9 @@ if $PROGRAM_NAME == __FILE__
           }x))
 
             date = parse_date match['date']
+            start_time = parse_time match['start_time']
+            end_time = parse_time match['end_time']
             begin
-              start_time = Time.parse(match['start_time'].strip.gsub('.', ':'))
-              end_time = Time.parse(match['end_time'].strip.gsub('.', ':'))
               characters = match['chara'].split(/, ?/)
               location = match['location']
             rescue ArgumentError
