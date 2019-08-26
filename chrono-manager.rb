@@ -35,6 +35,20 @@ month_replace = {
   'декабря' => 'Dec'
 }
 
+def parse_date(date_string)
+  date_string = date_string.strip
+
+  case date_string
+  when /^\d?\d\.\d?\d\.\d\d$/
+    DateTime.strptime(date_string, '%d.%m.%y')
+  when /^\d?\d\.\d?\d\.\d{4}$/
+    DateTime.strptime(date_string, '%d.%m.%Y')
+  when /^\d?\d [^ ]+ \d{4}$/
+    date_string.gsub!(Regexp.union(month_replace.keys), month_replace)
+    DateTime.strptime(date_string, '%d %b %Y')
+  end
+end
+
 if $PROGRAM_NAME == __FILE__
   Net::HTTP.start('codegeass.ru') do |http|
     episodes = []
@@ -89,20 +103,8 @@ if $PROGRAM_NAME == __FILE__
             6\.\ ?Место\ действия:\ *(?<location>.+?)\ *\.?<br\ />.*
           }x))
 
+            date = parse_date match['date']
             begin
-              date_string = match['date'].strip
-              case date_string
-              when /^\d?\d\.\d?\d\.\d\d$/
-                date = DateTime.strptime(date_string, '%d.%m.%y')
-              when /^\d?\d\.\d?\d\.\d{4}$/
-                date = DateTime.strptime(date_string, '%d.%m.%Y')
-              when /^\d?\d [^ ]+ \d{4}$/
-                date_string.gsub!(Regexp.union(month_replace.keys), month_replace)
-                date = DateTime.strptime(date_string, '%d %b %Y')
-              else
-                raise ArgumentError
-              end
-
               start_time = Time.parse(match['start_time'].strip.gsub('.', ':'))
               end_time = Time.parse(match['end_time'].strip.gsub('.', ':'))
               characters = match['chara'].split(/, ?/)
