@@ -20,6 +20,7 @@ require 'net/http'
 require 'set'
 require 'time'
 
+OUTPUT_FILE = 'tmp.txt'
 PURGATORY_LINK = 'http://codegeass.ru/viewforum.php?id=89'
 MONTH_REPLACE = {
   'января' => 'Jan',
@@ -281,7 +282,7 @@ def pick_tz_guess_string(tz)
 end
 
 if $PROGRAM_NAME == __FILE__
-  file = File.open('tmp.txt', 'w')
+  file = File.open(OUTPUT_FILE, 'w')
 
   Net::HTTP.start('codegeass.ru') do |http|
     episodes = []
