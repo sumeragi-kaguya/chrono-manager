@@ -171,6 +171,9 @@ def parse_characters(chars_string)
     <a\ href=".*?\?id=(?<id>\d+)".*?>(?<name>.*?)</a>
     }x))
       char_map[match['name'].strip] = CHARS_ID[match['id'].to_i]
+      # Resolve via profile!!
+      # elsif value != CHARS[key]
+      #   raise BadCharRef, "Wrong name for this char id! #{key} should be #{CHARS[key]}, not #{value}"
     elsif CHARS[char_string]
       char_map[char_string] = CHARS[char_string]
     else
