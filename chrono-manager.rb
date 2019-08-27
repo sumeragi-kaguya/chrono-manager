@@ -281,7 +281,7 @@ def pick_tz_guess_string(tz)
   end
 end
 
-if $PROGRAM_NAME == __FILE__
+def main
   file = File.open(OUTPUT_FILE, 'w')
 
   Net::HTTP.start('codegeass.ru') do |http|
@@ -409,3 +409,5 @@ if $PROGRAM_NAME == __FILE__
     pp i
   end
 end
+
+main if $PROGRAM_NAME == __FILE__
