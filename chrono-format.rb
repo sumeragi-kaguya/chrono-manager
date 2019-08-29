@@ -21,6 +21,77 @@ require 'time'
 
 INPUT_FILE = 'tmp.txt'
 
+class ChronoEntry
+  def self.from_string(string)
+    init_params = {}
+
+    string.each_line do |line|
+      if line.start_with? 'Название:'
+        init_params[:name] = line
+                             .delete_prefix('Название:')
+                             .strip
+                             .split(nil, 2)
+                             .last
+      elsif line.start_with? 'Id темы:'
+        init_params[:id] = line.delete_prefix('Id темы:').strip.to_i
+      elsif line.start_with? 'Начало:'
+        init_params[:start] = DateTime.strptime(
+          line.delete_prefix('Начало:').strip,
+          '%d.%m.%Y %H:%M'
+        )
+      elsif line.start_with? 'Конец:'
+        init_params[:end_] = DateTime.strptime(
+          line.delete_prefix('Конец:').strip,
+          '%d.%m.%Y %H:%M'
+        )
+      elsif line.start_with? 'Персонажи:'
+        chara_string = line[/Персонажи: \[?(\d+(?:, \d+)*)?\]?/, 1]
+        init_params[:chara] = if chara_string
+                                chara_string.split(', ').map(&:to_i)
+                              else
+                                []
+                              end
+      elsif line.start_with? 'Часовой пояс:'
+        tz_candidates = line
+                        .gsub(/\[(\d+), ".*?"\]/, '\1')
+                        .scan(/\d+/)
+                        .map(&:to_i)
+
+        raise ArgumentError, 'Ambiguous timezone' if
+          tz_candidates.length > 1
+        raise ArgumentError, 'No timezone on timezone line' if
+          tz_candidates.empty?
+
+        init_params[:tz] = tz_candidates.first
+      end
+    end
+
+    init_params[:timeless] = !init_params.key?(:start)
+
+    begin
+      new(init_params)
+    rescue ArgumentError
+      nil
+    end
+  end
+
+  def initialize(timeless: false,
+                 name:,
+                 id:,
+                 start:,
+                 end_:,
+                 chara:,
+                 tz:)
+    @timeless = timeless
+    @name = name
+    @id = id
+    @start = start
+    @end = end_
+    @chara = chara
+    @tz = tz
+  end
+end
+
 def read_input_file
   entries = []
   entry = String.new
@@ -29,7 +100,8 @@ def read_input_file
     line.chomp!
 
     if line == '------'
-      entries << entry
+      entry = ChronoEntry.from_string(entry)
+      entries << entry if entry
       entry = String.new
       next
     end
