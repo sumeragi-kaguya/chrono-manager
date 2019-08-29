@@ -23,18 +23,18 @@ INPUT_FILE = 'tmp.txt'
 
 def read_input_file
   entries = []
-  entry = []
+  entry = String.new
 
   File.foreach(INPUT_FILE) do |line|
     line.chomp!
 
     if line == '------'
       entries << entry
-      entry = []
+      entry = String.new
       next
     end
 
-    entry << line unless line.empty?
+    entry << "\n" << line unless line.empty?
   end
 
   pp entries
