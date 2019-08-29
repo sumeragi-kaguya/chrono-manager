@@ -364,9 +364,9 @@ def main
             file.puts "Название: #{episode_name}"
             file.puts "Ссылка: #{episode_link}"
             file.puts "Id темы: #{topic_id}"
-            file.puts "Дата: #{date.strftime('%d.%m.%Y')}"
-            file.puts "Начало: #{start_time.strftime('%H:%M')}"
-            file.puts "Конец: #{end_time.strftime('%H:%M')}"
+            # file.puts "Дата: #{date.strftime('%d.%m.%Y')}"
+            file.puts "Начало: #{date.strftime('%d.%m.%Y')} #{start_time.strftime('%H:%M')}"
+            file.puts "Конец: #{date.strftime('%d.%m.%Y')} #{end_time.strftime('%H:%M')}"
             file.puts "Персонажи: #{characters.values} (#{characters.keys})"
             file.puts 'Неизвестные персонажи (возможно, стоит их добавить): ' \
                  "#{unknown_characters}" if !unknown_characters.empty?
