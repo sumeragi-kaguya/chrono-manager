@@ -57,6 +57,11 @@ class ChronoEntry
           line.delete_prefix('Начало:').strip,
           '%d.%m.%Y %H:%M'
         )
+      elsif line.start_with? 'Дата:'
+        init_params[:start] = DateTime.strptime(
+          line.delete_prefix('Дата:').strip,
+          '%d.%m.%Y'
+        )
       elsif line.start_with? 'Конец:'
         init_params[:end_] = DateTime.strptime(
           line.delete_prefix('Конец:').strip,
@@ -84,7 +89,7 @@ class ChronoEntry
       end
     end
 
-    init_params[:timeless] = !init_params.key?(:start)
+    init_params[:timeless] = !init_params.key?(:end_)
 
     begin
       new(init_params)
@@ -97,7 +102,7 @@ class ChronoEntry
                  name:,
                  id:,
                  start:,
-                 end_:,
+                 end_: nil,
                  chara:,
                  tz:)
     @timeless = timeless
