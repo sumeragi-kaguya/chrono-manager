@@ -230,6 +230,29 @@ def pick_tz_guess_string(tz)
   end
 end
 
+def scan_chara
+  require 'set'
+
+  chara = {}
+
+  Net::HTTP.start('codegeass.ru') do |http|
+    response = http.get('http://codegeass.ru/pages/persons')
+
+    body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
+    ids = body.scan(%r{http://codegeass.ru/pages/id(\d+)}).flatten.map(&:to_i).to_set
+
+    ids.each do |id|
+      response = http.get("http://codegeass.ru/pages/id#{'%02d' % id}")
+      body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
+      name = body[%r{<h1><span>(.*?)</span></h1>}, 1]
+      pp [name, id]
+      chara[id] = name
+    end
+  end
+
+  pp chara
+end
+
 def main
   file = File.open(OUTPUT_FILE, 'w')
 
