@@ -197,7 +197,7 @@ def read_input_file
     entry << "\n" << line unless line.empty?
   end
 
-  pp entries
+  entries
 end
 
 def main
