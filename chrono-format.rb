@@ -119,6 +119,24 @@ class ChronoEntry
     @end = end_
     @chara = chara
     @tz = tz
+
+    @arc = if @start >= DateTime.new(2018, 1, 1)
+             7
+           elsif @start >= DateTime.new(2017, 12, 1)
+             6
+           elsif @start >= DateTime.new(2017, 11, 1)
+             5
+           elsif @start >= DateTime.new(2017, 10, 16)
+             4
+           elsif @start >= DateTime.new(2017, 10, 1)
+             3
+           elsif @start >= DateTime.new(2017, 9, 1)
+             2
+           elsif @start >= DateTime.new(2017, 7, 15)
+             1
+           else
+             0
+           end
   end
 
   def html
