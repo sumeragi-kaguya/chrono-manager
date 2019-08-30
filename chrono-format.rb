@@ -44,6 +44,8 @@ def tz_shift(datetime, tz)
 end
 
 class ChronoEntry
+  attr_reader :timeless, :name, :id, :start, :end, :chara, :tz, :arc
+
   def self.from_string(string)
     init_params = {}
 
