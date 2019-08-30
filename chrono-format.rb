@@ -40,8 +40,27 @@ MONTHS = {
   12 => 'декабря'
 }.freeze
 
+ARCS = {
+  0 => nil,
+  1 => DateTime.new(2017, 7, 15),
+  2 => DateTime.new(2017, 9, 1),
+  3 => DateTime.new(2017, 10, 1),
+  4 => DateTime.new(2017, 10, 16),
+  5 => DateTime.new(2017, 11, 1),
+  6 => DateTime.new(2017, 12, 1),
+  7 => DateTime.new(2018, 1, 1)
+}.freeze
+
 def tz_shift(datetime, tz)
   tz && datetime ? datetime - Rational(tz, 24) : datetime
+end
+
+def pick_arc(date)
+  ARCS.reverse_each do |key, value|
+    return key if value && date >= value
+  end
+
+  0
 end
 
 class ChronoEntry
@@ -123,23 +142,7 @@ class ChronoEntry
     @chara = chara
     @tz = tz
 
-    @arc = if @start >= DateTime.new(2018, 1, 1)
-             7
-           elsif @start >= DateTime.new(2017, 12, 1)
-             6
-           elsif @start >= DateTime.new(2017, 11, 1)
-             5
-           elsif @start >= DateTime.new(2017, 10, 16)
-             4
-           elsif @start >= DateTime.new(2017, 10, 1)
-             3
-           elsif @start >= DateTime.new(2017, 9, 1)
-             2
-           elsif @start >= DateTime.new(2017, 7, 15)
-             1
-           else
-             0
-           end
+    @arc = pick_arc(@start)
   end
 
   def html
