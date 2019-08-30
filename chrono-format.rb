@@ -163,6 +163,21 @@ class ChronoEntry
       HTML
     end
   end
+
+  def to_json
+    <<~JSON.chomp
+    {id: #{@id},
+     start: "#{@start}",
+     end: "#{@end}",
+     tz: #{@tz},
+     turn: #{@arc},
+     name: "#{CGI::escapeHTML(@name)}",
+     mode: 0,
+     chara: #{@chara},
+     done: true
+    }
+    JSON
+  end
 end
 
 def read_input_file
