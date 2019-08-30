@@ -23,6 +23,7 @@ require 'time'
 require_relative 'data'
 
 INPUT_FILE = 'tmp.txt'
+ARC_DIGITS = 2
 
 MONTHS = {
   1 => 'января',
@@ -203,7 +204,13 @@ def read_input_file
 end
 
 def main
-  episode_array = read_input_file
+  episode_array = read_input_file.sort_by do |item|
+    arc_sort = item.arc.zero? ? 10 ** ARC_DIGITS - 1 : item.arc
+    arc_sort = "%0#{ARC_DIGITS}d" % arc_sort
+    "#{arc_sort} #{item.start} #{item.name}"
+  end
+
+  episode_array = episode_array
                   .each
                   .map(&:to_json)
                   .join(",\n")
