@@ -39,6 +39,10 @@ MONTHS = {
   12 => 'декабря'
 }.freeze
 
+def tz_shift(datetime, tz)
+  tz && datetime ? datetime - Rational(tz, 24) : datetime
+end
+
 class ChronoEntry
   def self.from_string(string)
     init_params = {}
@@ -90,6 +94,9 @@ class ChronoEntry
     end
 
     init_params[:timeless] = !init_params.key?(:end_)
+
+    init_params[:start] = tz_shift(init_params[:start], init_params[:tz])
+    init_params[:end_] = tz_shift(init_params[:end_], init_params[:tz])
 
     begin
       new(init_params)
