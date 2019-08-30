@@ -16,10 +16,28 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
+require 'cgi/util'
 require 'net/http'
 require 'time'
 
+require_relative 'data'
+
 INPUT_FILE = 'tmp.txt'
+
+MONTHS = {
+  1 => 'января',
+  2 => 'февраля',
+  3 => 'марта',
+  4 => 'апреля',
+  5 => 'мая',
+  6 => 'июня',
+  7 => 'июля',
+  8 => 'августа',
+  9 => 'сентября',
+  10 => 'октября',
+  11 => 'ноября',
+  12 => 'декабря'
+}.freeze
 
 class ChronoEntry
   def self.from_string(string)
@@ -90,6 +108,31 @@ class ChronoEntry
     @chara = chara
     @tz = tz
   end
+
+  def html
+    unless @timeless
+      <<~HTML
+        <p id="#{@id}"></p>
+        <script type="text/javascript">
+        setepisode(#{@id},#{@start.day},"#{MONTHS[@start.month]}",#{@start.hour},#{@start.minute},#{@end.hour},#{@end.minute},#{@tz},"#{CGI::escapeHTML(@name)}",0,#{@chara.join(',')},1);
+        </script>
+      HTML
+    else
+      char_list = @chara.map do |char_chrono_id|
+        %(<a href="http://codegeass.ru/pages/id#{'%02d' % char_chrono_id}">) +
+          %(#{CGI.escapeHTML CHARS[char_chrono_id]}</a>)
+      end.join(', ')
+
+      <<~HTML
+        <div class="chep">
+        <div class="chtime1">#{@start.day} #{MONTHS[@start.month]} #{@start.year} года</div>
+        <div class="chepname"><a href="http://codegeass.ru/viewtopic.php?id=#{@id}">#{CGI.escapeHTML(@name)}</a></div>
+        <div class="chcast">#{char_list}</div>
+        <div class="chstat">Завершен</div>
+        </div>
+      HTML
+    end
+  end
 end
 
 def read_input_file
@@ -113,8 +156,11 @@ def read_input_file
 end
 
 def main
-  raw_entries = read_input_file
-  pp raw_entries
+  entries = read_input_file
+  entries.each.map(&:html).each do |entry|
+    puts entry
+    puts
+  end
 end
 
 main if $PROGRAM_NAME == __FILE__
