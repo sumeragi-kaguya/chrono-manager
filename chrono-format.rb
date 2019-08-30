@@ -166,16 +166,16 @@ class ChronoEntry
 
   def to_json
     <<~JSON.chomp
-    {id: #{@id},
-     start: "#{@start}",
-     end: "#{@end}",
-     tz: #{@tz},
-     turn: #{@arc},
-     name: "#{CGI::escapeHTML(@name)}",
-     mode: 0,
-     chara: #{@chara},
-     done: true
-    }
+      {"id": #{@id},
+       "start": "#{@start}",
+       "end": "#{@end}",
+       "tz": #{@tz},
+       "turn": #{@arc},
+       "name": "#{CGI.escapeHTML(@name)}",
+       "mode": 0,
+       "chara": #{@chara},
+       "done": true
+      }
     JSON
   end
 end
@@ -201,11 +201,14 @@ def read_input_file
 end
 
 def main
-  entries = read_input_file
-  entries.each.map(&:html).each do |entry|
-    puts entry
-    puts
-  end
+  episode_array = read_input_file
+                  .each
+                  .map(&:to_json)
+                  .join(",\n")
+                  .each_line
+                  .map {|line| '  ' + line}
+                  .join
+  puts %([\n#{episode_array}\n])
 end
 
 main if $PROGRAM_NAME == __FILE__
