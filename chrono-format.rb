@@ -251,6 +251,8 @@ def read_chrono_pages
                               match['end_minute'].to_i)
           end_ = tz_shift end_, tz
 
+          end_ += 1 if end_ < start
+
           entries << ChronoEntry.new(
             timeless: false,
             name: name,
@@ -352,6 +354,8 @@ def read_chrono_pages
                                    tzs_start_hour,
                                    tzs_start_minute)
           tz = ((tzs_start - start) * 24).to_i
+
+          end_ += 1 if end_ < start
 
           entries << ChronoEntry.new(
             timeless: false,
