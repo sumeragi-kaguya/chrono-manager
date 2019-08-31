@@ -237,25 +237,28 @@ def read_chrono_pages
           name = JSON.parse(%("#{name}"))
           month = match['month'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
           month = JSON.parse(%("#{month}"))
+          tz = match['tz'].to_i
           start = DateTime.new(year,
                                MONTHS_BACK[month],
                                match['day'].to_i,
                                match['start_hour'].to_i,
                                match['start_minute'].to_i)
+          start = tz_shift start, tz
           end_ = DateTime.new(year,
                               MONTHS_BACK[month],
                               match['day'].to_i,
                               match['end_hour'].to_i,
                               match['end_minute'].to_i)
+          end_ = tz_shift end_, tz
 
           entries << ChronoEntry.new(
             timeless: false,
             name: name,
             id: match['id'].to_i,
             chara: match['chara'].split(',').map(&:to_i),
-            tz: match['tz'].to_i
             start: start,
             end_: end_,
+            tz: tz
           )
         elsif (match = line.match(%r{setepisodenotime\(
           (?<id>\d+),
