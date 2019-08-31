@@ -17,6 +17,7 @@
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
 require 'cgi/util'
+require 'json'
 require 'net/http'
 require 'time'
 
@@ -150,7 +151,7 @@ class ChronoEntry
       <<~HTML
         <p id="#{@id}"></p>
         <script type="text/javascript">
-        setepisode(#{@id},#{@start.day},"#{MONTHS[@start.month]}",#{@start.hour},#{@start.minute},#{@end.hour},#{@end.minute},#{@tz},"#{CGI::escapeHTML(@name)}",0,#{@chara.join(',')},1);
+        setepisode(#{@id},#{@start.day},"#{MONTHS[@start.month]}",#{@start.hour},#{@start.minute},#{@end.hour},#{@end.minute},#{@tz},#{JSON.dump(@name)},0,#{@chara.join(',')},1);
         </script>
       HTML
     else
