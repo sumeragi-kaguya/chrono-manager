@@ -41,6 +41,8 @@ MONTHS = {
   12 => 'декабря'
 }.freeze
 
+MONTHS_BACK = MONTHS.invert.freeze
+
 ARCS = {
   0 => nil,
   1 => DateTime.new(2017, 7, 15),
@@ -241,12 +243,12 @@ def read_chrono_pages
             name: name,
             id: match['id'].to_i,
             start: DateTime.new(year,
-                                MONTHS.invert[month],
+                                MONTHS_BACK[month],
                                 match['day'].to_i,
                                 match['start_hour'].to_i,
                                 match['start_minute'].to_i),
             end_: DateTime.new(year,
-                               MONTHS.invert[month],
+                               MONTHS_BACK[month],
                                match['day'].to_i,
                                match['end_hour'].to_i,
                                match['end_minute'].to_i),
@@ -276,10 +278,10 @@ def read_chrono_pages
             name: name,
             id: match['id'].to_i,
             start: DateTime.new(year,
-                                MONTHS.invert[start_month],
+                                MONTHS_BACK[start_month],
                                 match['start_day'].to_i),
             end_: DateTime.new(year,
-                               MONTHS.invert[end_month],
+                               MONTHS_BACK[end_month],
                                match['end_day'].to_i),
             chara: match['chara'].split(',').map(&:to_i),
             tz: 0
