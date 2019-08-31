@@ -43,6 +43,23 @@ MONTHS = {
 
 MONTHS_BACK = MONTHS.invert.freeze
 
+MONTHS_NOMINATIVE = {
+  1 => 'январь',
+  2 => 'февраль',
+  3 => 'март',
+  4 => 'апрель',
+  5 => 'май',
+  6 => 'июнь',
+  7 => 'июль',
+  8 => 'август',
+  9 => 'сентябрь',
+  10 => 'октябрь',
+  11 => 'ноябрь',
+  12 => 'декабрь'
+}.freeze
+
+MONTHS_NOMINATIVE_BACK = MONTHS_NOMINATIVE.invert.freeze
+
 ARCS = {
   0 => nil,
   1 => DateTime.new(2017, 7, 15),
@@ -64,6 +81,38 @@ def pick_arc(date)
   end
 
   0
+end
+
+def parse_big_ep_start_end(date_str)
+  match = date_str.match(/^
+    (?:(?<start_day>\d+)?
+       \ ?((?<start_month>\D*?))?
+       \ ?((?<start_year>\d+)(?:\ года)?
+           (?<start_pre_atb>\ до\ a.t.b.)?)?
+       \ ?-(?:\ |(?:<br>))?)?
+    (?<end_day>\d+)?
+    \ ?(?<end_month>\D*?)
+    \ (?<end_year>\d+)(?:\ года)?
+      (?<end_pre_atb>\ до\ a.t.b.)?
+  $/x)
+
+  end_day = (match['end_day'] || 1).to_i
+  start_day = (match['start_day'] || end_day).to_i
+  end_month = MONTHS_BACK[match['end_month']] ||
+              MONTHS_NOMINATIVE_BACK[match['end_month']] ||
+              1
+  start_month = MONTHS_BACK[match['start_month']] ||
+                MONTHS_NOMINATIVE_BACK[match['start_month']] ||
+                end_month
+  end_year = match['end_year'].to_i
+  end_year = -end_year + 1 if match['end_pre_atb']
+  start_year = (match['start_year'] || end_year).to_i
+  start_year = -start_year + 1 if match['start_pre_atb']
+
+  start = DateTime.new(start_year, start_month, start_day)
+  end_ = DateTime.new(end_year, end_month, end_day)
+
+  [start, end_]
 end
 
 class ChronoEntry
@@ -211,161 +260,221 @@ end
 
 def read_chrono_pages
   entries = []
+
   Net::HTTP.start('codegeass.ru') do |http|
     ARCS.each_key do |arc|
       response = http.get("http://codegeass.ru/pages/chronology#{arc}")
       body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
 
+      in_big_ep = false
+      big_ep_str = nil
+
       body.each_line do |line|
         year = arc < 7 ? 2017 : 2018
 
-        if (match = line.match(%r{setepisode\(
-          (?<id>\d+),
-          (?<day>\d+),
-          '(?<month>.*?)',
-          (?<start_hour>\d+),
-          (?<start_minute>\d+),
-          (?<end_hour>\d+),
-          (?<end_minute>\d+),
-          (?<tz>\d+),\ *
-          '(?<name>.*?)',
-          (?<mode>\d+),
-          (?:(?<chara>\d+(?:,\ *\d+)*),)?
-          (?<done>\d+)
-        \);}x))
-          name = match['name'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
-          name = JSON.parse(%("#{name}"))
-          month = match['month'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
-          month = JSON.parse(%("#{month}"))
-          tz = match['tz'].to_i
-          start = DateTime.new(year,
-                               MONTHS_BACK[month],
-                               match['day'].to_i,
-                               match['start_hour'].to_i,
-                               match['start_minute'].to_i)
-          start = tz_shift start, tz
-          end_ = DateTime.new(year,
-                              MONTHS_BACK[month],
-                              match['day'].to_i,
-                              match['end_hour'].to_i,
-                              match['end_minute'].to_i)
-          end_ = tz_shift end_, tz
+        if line.chomp == '<div class="chep">'
+          in_big_ep = true
+          big_ep_str = String.new
+          next
+        end
 
-          end_ += 1 if end_ < start
+        if in_big_ep
+          if line.chomp == '</div>'
+            in_big_ep = false
 
-          entries << ChronoEntry.new(
-            timeless: false,
-            name: name,
-            id: match['id'].to_i,
-            start: start,
-            end_: end_,
-            chara: match['chara'].to_s.split(',').map(&:to_i),
-            tz: tz
-          )
-        elsif (match = line.match(%r{setepisodenotime\(
-          (?<id>\d+),
-          '(?<start_day>\d+)\ (?<start_month>.*?)',
-          '(?<end_day>\d+)\ (?<end_month>.*?)',
-          '(?<name>.*?)',
-          (?<mode>\d+),
-          (?:(?<chara>\d+(?:,\d+)*),)?
-          (?<done>\d+)
-        \);}x))
-          name = match['name'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
-          name = JSON.parse(%("#{name}"))
-          start_month = match['start_month'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
-          start_month = JSON.parse(%("#{start_month}"))
-          end_month = match['end_month'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
-          end_month = JSON.parse(%("#{end_month}"))
+            match = big_ep_str.match(%r{
+              <div\ class="chtime1">
+                (?<date_str>.*?)
+              </div>\r?\n?
+              <div\ class="chepname">
+                <a\ href="http://codegeass\.ru/viewtopic\.php\?id=(?<id>\d+)">
+                  (?<name>.*?)
+                </a>
+              </div>\r?\n?
+              <div\ class="chcast">
+                (?:
+                  (?<chara_string>
+                    (?:<a\ href="http://codegeass.ru/pages/id\d+">.*?</a>,?)*
+                  )|
+                  (?:нпс)
+                )
+              </div>\r?\n?
+              <div\ class="chstat">(?<done_string>.*?)</div>
+            }x)
 
-          # FORGOT ABOUT TZ SHIFT
+            next unless match
 
-          entries << ChronoEntry.new(
-            timeless: false,
-            name: name,
-            id: match['id'].to_i,
-            start: DateTime.new(year,
-                                MONTHS_BACK[start_month],
-                                match['start_day'].to_i),
-            end_: DateTime.new(year,
-                               MONTHS_BACK[end_month],
-                               match['end_day'].to_i),
-            chara: match['chara'].to_s.split(',').map(&:to_i),
-            tz: 0
-          )
-        elsif (match = line.match(%r{
-          <div\ class="chep">
-            <div\ class="chtime0">
-              \((?<day>\d+)\ (?<month>.*?)\)<br>
-              \ (?<start_hour>\d+):(?<start_minute>\d+)\ -
-              \ (?<end_hour>\d+):(?<end_minute>\d+)
-            </div>
-            <div\ class="chtime">
-              \((?<tzs_day>\d+)\ (?<tzs_month>.*?)\)<br>
-              \ (?<tzs_start_hour>\d+):(?<tzs_start_minute>\d+)\ -
-              \ .*?
-            </div>
-            <div\ class="chepname">
-              <a\ href="http://codegeass\.ru/viewtopic\.php\?id=(?<id>\d+)">
-                (?<name>.*?)
-              </a>
-            </div>
-            <div\ class="chcast">
-              (?<chara_string>
-                (?:<a\ href="http://codegeass.ru/pages/id\d+">.*?</a>,?)*
-              )
-            </div>
-            <div\ class="chstat">(?<done_string>.*?)</div>
-          </div>
-        }x))
-          day = match['day'].to_i
-          month = MONTHS_BACK[match['month']]
-          start_hour = match['start_hour'].to_i
-          start_minute = match['start_minute'].to_i
-          end_hour = match['end_hour'].to_i
-          end_minute = match['end_minute'].to_i
-          tzs_day = match['tzs_day'].to_i
-          tzs_month = MONTHS_BACK[match['tzs_month']]
-          tzs_start_hour = match['tzs_start_hour'].to_i
-          tzs_start_minute = match['tzs_start_minute'].to_i
-          id = match['id'].to_i
-          name = match['name']
-          chara = match['chara_string']
+            name = match['name']
+            id = match['id'].to_i
+            start, end_ = parse_big_ep_start_end(match['date_str'])
+            chara = match['chara_string']
                     .to_s
                     .split(', ')
                     .map do |href|
-            href[%r{<a\ href="http://codegeass.ru/pages/id(\d+)">}, 1]
-              .to_i
+              href[%r{<a\ href="http://codegeass.ru/pages/id(\d+)">}, 1]
+                .to_i
+            end
+            done = match['done_string'] == 'Завершен'
+
+            entries << ChronoEntry.new(
+              timeless: true,
+              name: name,
+              id: id,
+              start: start,
+              end_: end_,
+              chara: chara,
+              tz: 0
+            )
+          else
+            big_ep_str << line
           end
-          done = match['done_string'] == 'Завершен'
-          start = DateTime.new(year,
-                               month,
-                               day,
-                               start_hour,
-                               start_minute)
-          end_ = DateTime.new(year,
-                              month,
-                              day,
-                              end_hour,
-                              end_minute)
-          tzs_start = DateTime.new(year,
-                                   tzs_month,
-                                   tzs_day,
-                                   tzs_start_hour,
-                                   tzs_start_minute)
-          tz = ((tzs_start - start) * 24).to_i
+        else
+          if (match = line.match(%r{setepisode\(
+            (?<id>\d+),
+            (?<day>\d+),
+            '(?<month>.*?)',
+            (?<start_hour>\d+),
+            (?<start_minute>\d+),
+            (?<end_hour>\d+),
+            (?<end_minute>\d+),
+            (?<tz>\d+),\ *
+            '(?<name>.*?)',
+            (?<mode>\d+),
+            (?:(?<chara>\d+(?:,\ *\d+)*),)?
+            (?<done>\d+)
+          \);}x))
+            name = match['name'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
+            name = JSON.parse(%("#{name}"))
+            month = match['month'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
+            month = JSON.parse(%("#{month}"))
+            tz = match['tz'].to_i
+            start = DateTime.new(year,
+                                 MONTHS_BACK[month],
+                                 match['day'].to_i,
+                                 match['start_hour'].to_i,
+                                 match['start_minute'].to_i)
+            start = tz_shift start, tz
+            end_ = DateTime.new(year,
+                                MONTHS_BACK[month],
+                                match['day'].to_i,
+                                match['end_hour'].to_i,
+                                match['end_minute'].to_i)
+            end_ = tz_shift end_, tz
 
-          end_ += 1 if end_ < start
+            end_ += 1 if end_ < start
 
-          entries << ChronoEntry.new(
-            timeless: false,
-            name: name,
-            id: id,
-            start: start,
-            end_: end_,
-            chara: chara,
-            tz: tz
-          )
+            entries << ChronoEntry.new(
+              timeless: false,
+              name: name,
+              id: match['id'].to_i,
+              start: start,
+              end_: end_,
+              chara: match['chara'].to_s.split(',').map(&:to_i),
+              tz: tz
+            )
+          elsif (match = line.match(%r{setepisodenotime\(
+            (?<id>\d+),
+            '(?<start_day>\d+)\ (?<start_month>.*?)',
+            '(?<end_day>\d+)\ (?<end_month>.*?)',
+            '(?<name>.*?)',
+            (?<mode>\d+),
+            (?:(?<chara>\d+(?:,\d+)*),)?
+            (?<done>\d+)
+          \);}x))
+            name = match['name'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
+            name = JSON.parse(%("#{name}"))
+            start_month = match['start_month'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
+            start_month = JSON.parse(%("#{start_month}"))
+            end_month = match['end_month'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
+            end_month = JSON.parse(%("#{end_month}"))
+
+            entries << ChronoEntry.new(
+              timeless: false,
+              name: name,
+              id: match['id'].to_i,
+              start: DateTime.new(year,
+                                  MONTHS_BACK[start_month],
+                                  match['start_day'].to_i),
+              end_: DateTime.new(year,
+                                 MONTHS_BACK[end_month],
+                                 match['end_day'].to_i),
+              chara: match['chara'].to_s.split(',').map(&:to_i),
+              tz: 0
+            )
+          elsif (match = line.match(%r{
+            <div\ class="chep">
+              <div\ class="chtime0">
+                \((?<day>\d+)\ (?<month>.*?)\)<br>
+                \ (?<start_hour>\d+):(?<start_minute>\d+)\ -
+                \ (?<end_hour>\d+):(?<end_minute>\d+)
+              </div>
+              <div\ class="chtime">
+                \((?<tzs_day>\d+)\ (?<tzs_month>.*?)\)<br>
+                \ (?<tzs_start_hour>\d+):(?<tzs_start_minute>\d+)\ -
+                \ .*?
+              </div>
+              <div\ class="chepname">
+                <a\ href="http://codegeass\.ru/viewtopic\.php\?id=(?<id>\d+)">
+                  (?<name>.*?)
+                </a>
+              </div>
+              <div\ class="chcast">
+                (?<chara_string>
+                  (?:<a\ href="http://codegeass.ru/pages/id\d+">.*?</a>,?)*
+                )
+              </div>
+              <div\ class="chstat">(?<done_string>.*?)</div>
+            </div>
+          }x))
+            day = match['day'].to_i
+            month = MONTHS_BACK[match['month']]
+            start_hour = match['start_hour'].to_i
+            start_minute = match['start_minute'].to_i
+            end_hour = match['end_hour'].to_i
+            end_minute = match['end_minute'].to_i
+            tzs_day = match['tzs_day'].to_i
+            tzs_month = MONTHS_BACK[match['tzs_month']]
+            tzs_start_hour = match['tzs_start_hour'].to_i
+            tzs_start_minute = match['tzs_start_minute'].to_i
+            id = match['id'].to_i
+            name = match['name']
+            chara = match['chara_string']
+                    .to_s
+                    .split(', ')
+                    .map do |href|
+              href[%r{<a\ href="http://codegeass.ru/pages/id(\d+)">}, 1]
+                .to_i
+            end
+            done = match['done_string'] == 'Завершен'
+            start = DateTime.new(year,
+                                 month,
+                                 day,
+                                 start_hour,
+                                 start_minute)
+            end_ = DateTime.new(year,
+                                month,
+                                day,
+                                end_hour,
+                                end_minute)
+            tzs_start = DateTime.new(year,
+                                     tzs_month,
+                                     tzs_day,
+                                     tzs_start_hour,
+                                     tzs_start_minute)
+            tz = ((tzs_start - start) * 24).to_i
+
+            end_ += 1 if end_ < start
+
+            entries << ChronoEntry.new(
+              timeless: false,
+              name: name,
+              id: id,
+              start: start,
+              end_: end_,
+              chara: chara,
+              tz: tz
+            )
+          end
         end
       end
     end
