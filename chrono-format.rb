@@ -227,10 +227,10 @@ def read_chrono_pages
           (?<start_minute>\d+),
           (?<end_hour>\d+),
           (?<end_minute>\d+),
-          (?<tz>\d+),
+          (?<tz>\d+),\ *
           '(?<name>.*?)',
           (?<mode>\d+),
-          (?<chara>\d+(?:,\d+)*),
+          (?<chara>\d+(?:,\ *\d+)*),
           (?<done>\d+)
         \);}x))
           name = match['name'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
