@@ -230,7 +230,7 @@ def read_chrono_pages
           (?<tz>\d+),\ *
           '(?<name>.*?)',
           (?<mode>\d+),
-          (?<chara>\d+(?:,\ *\d+)*),
+          (?:(?<chara>\d+(?:,\ *\d+)*),)?
           (?<done>\d+)
         \);}x))
           name = match['name'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
@@ -255,9 +255,9 @@ def read_chrono_pages
             timeless: false,
             name: name,
             id: match['id'].to_i,
-            chara: match['chara'].split(',').map(&:to_i),
             start: start,
             end_: end_,
+            chara: match['chara'].to_s.split(',').map(&:to_i),
             tz: tz
           )
         elsif (match = line.match(%r{setepisodenotime\(
@@ -266,7 +266,7 @@ def read_chrono_pages
           '(?<end_day>\d+)\ (?<end_month>.*?)',
           '(?<name>.*?)',
           (?<mode>\d+),
-          (?<chara>\d+(?:,\d+)*),
+          (?:(?<chara>\d+(?:,\d+)*),)?
           (?<done>\d+)
         \);}x))
           name = match['name'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
@@ -288,7 +288,7 @@ def read_chrono_pages
             end_: DateTime.new(year,
                                MONTHS_BACK[end_month],
                                match['end_day'].to_i),
-            chara: match['chara'].split(',').map(&:to_i),
+            chara: match['chara'].to_s.split(',').map(&:to_i),
             tz: 0
           )
         elsif (match = line.match(%r{
@@ -310,7 +310,7 @@ def read_chrono_pages
             </div>
             <div\ class="chcast">
               (?<chara_string>
-                (?:<a\ href="http://codegeass.ru/pages/id\d+">.*?</a>,?)+
+                (?:<a\ href="http://codegeass.ru/pages/id\d+">.*?</a>,?)*
               )
             </div>
             <div\ class="chstat">(?<done_string>.*?)</div>
@@ -329,11 +329,12 @@ def read_chrono_pages
           id = match['id'].to_i
           name = match['name']
           chara = match['chara_string']
-                  .split(', ')
-                  .map do |href|
-                    href[%r{<a\ href="http://codegeass.ru/pages/id(\d+)">}, 1]
-                      .to_i
-                  end
+                    .to_s
+                    .split(', ')
+                    .map do |href|
+            href[%r{<a\ href="http://codegeass.ru/pages/id(\d+)">}, 1]
+              .to_i
+          end
           done = match['done_string'] == 'Завершен'
           start = DateTime.new(year,
                                month,
