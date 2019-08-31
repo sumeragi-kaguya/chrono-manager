@@ -286,6 +286,79 @@ def read_chrono_pages
             chara: match['chara'].split(',').map(&:to_i),
             tz: 0
           )
+        elsif (match = line.match(%r{
+          <div\ class="chep">
+            <div\ class="chtime0">
+              \((?<day>\d+)\ (?<month>.*?)\)<br>
+              \ (?<start_hour>\d+):(?<start_minute>\d+)\ -
+              \ (?<end_hour>\d+):(?<end_minute>\d+)
+            </div>
+            <div\ class="chtime">
+              \((?<tzs_day>\d+)\ (?<tzs_month>.*?)\)<br>
+              \ (?<tzs_start_hour>\d+):(?<tzs_start_minute>\d+)\ -
+              \ .*?
+            </div>
+            <div\ class="chepname">
+              <a\ href="http://codegeass\.ru/viewtopic\.php\?id=(?<id>\d+)">
+                (?<name>.*?)
+              </a>
+            </div>
+            <div\ class="chcast">
+              (?<chara_string>
+                (?:<a\ href="http://codegeass.ru/pages/id\d+">.*?</a>,?)+
+              )
+            </div>
+            <div\ class="chstat">(?<done_string>.*?)</div>
+          </div>
+        }x))
+          day = match['day'].to_i
+          month = MONTHS_BACK[match['month']]
+          start_hour = match['start_hour'].to_i
+          start_minute = match['start_minute'].to_i
+          end_hour = match['end_hour'].to_i
+          end_minute = match['end_minute'].to_i
+          tzs_day = match['tzs_day'].to_i
+          tzs_month = MONTHS_BACK[match['tzs_month']]
+          tzs_start_hour = match['tzs_start_hour'].to_i
+          tzs_start_minute = match['tzs_start_minute'].to_i
+          id = match['id'].to_i
+          name = match['name']
+          chara = match['chara_string']
+                  .split(', ')
+                  .map do |href|
+                    href[%r{<a\ href="http://codegeass.ru/pages/id(\d+)">}, 1]
+                      .to_i
+                  end
+          done = match['done_string'] == 'Завершен'
+          start = DateTime.new(year,
+                               month,
+                               day,
+                               start_hour,
+                               start_minute)
+          tzs_start = DateTime.new(year,
+                                   tzs_month,
+                                   tzs_day,
+                                   tzs_start_hour,
+                                   tzs_start_minute)
+          tz = ((tzs_start - start) * 24).to_i
+
+          entries << ChronoEntry.new(
+            timeless: false,
+            name: name,
+            id: id,
+            start: DateTime.new(year,
+                                month,
+                                day,
+                                start_hour,
+                                start_minute),
+            end_: DateTime.new(year,
+                               month,
+                               day,
+                               end_hour,
+                               end_minute),
+            chara: chara,
+            tz: tz
+          )
         end
       end
     end
