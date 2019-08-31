@@ -237,23 +237,25 @@ def read_chrono_pages
           name = JSON.parse(%("#{name}"))
           month = match['month'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
           month = JSON.parse(%("#{month}"))
+          start = DateTime.new(year,
+                               MONTHS_BACK[month],
+                               match['day'].to_i,
+                               match['start_hour'].to_i,
+                               match['start_minute'].to_i)
+          end_ = DateTime.new(year,
+                              MONTHS_BACK[month],
+                              match['day'].to_i,
+                              match['end_hour'].to_i,
+                              match['end_minute'].to_i)
 
           entries << ChronoEntry.new(
             timeless: false,
             name: name,
             id: match['id'].to_i,
-            start: DateTime.new(year,
-                                MONTHS_BACK[month],
-                                match['day'].to_i,
-                                match['start_hour'].to_i,
-                                match['start_minute'].to_i),
-            end_: DateTime.new(year,
-                               MONTHS_BACK[month],
-                               match['day'].to_i,
-                               match['end_hour'].to_i,
-                               match['end_minute'].to_i),
             chara: match['chara'].split(',').map(&:to_i),
             tz: match['tz'].to_i
+            start: start,
+            end_: end_,
           )
         elsif (match = line.match(%r{setepisodenotime\(
           (?<id>\d+),
@@ -335,6 +337,11 @@ def read_chrono_pages
                                day,
                                start_hour,
                                start_minute)
+          end_ = DateTime.new(year,
+                              month,
+                              day,
+                              end_hour,
+                              end_minute)
           tzs_start = DateTime.new(year,
                                    tzs_month,
                                    tzs_day,
@@ -346,16 +353,8 @@ def read_chrono_pages
             timeless: false,
             name: name,
             id: id,
-            start: DateTime.new(year,
-                                month,
-                                day,
-                                start_hour,
-                                start_minute),
-            end_: DateTime.new(year,
-                               month,
-                               day,
-                               end_hour,
-                               end_minute),
+            start: start,
+            end_: end_,
             chara: chara,
             tz: tz
           )
