@@ -207,21 +207,75 @@ def read_input_file
   entries
 end
 
-def main
-  episode_array = read_input_file.sort_by do |item|
-    arc_sort = item.arc.zero? ? 10 ** ARC_DIGITS - 1 : item.arc
-    arc_sort = "%0#{ARC_DIGITS}d" % arc_sort
-    "#{arc_sort} #{item.start} #{item.name}"
-  end
+def read_chrono_pages
+  entries = []
+  Net::HTTP.start('codegeass.ru') do |http|
+    ARCS.each_key do |arc|
+      response = http.get("http://codegeass.ru/pages/chronology#{arc}")
+      body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
 
-  episode_array = episode_array
-                  .each
-                  .map(&:to_json)
-                  .join(",\n")
-                  .each_line
-                  .map {|line| '  ' + line}
-                  .join
-  puts %([\n#{episode_array}\n])
+      body.each_line do |line|
+        year = arc < 7 ? 2017 : 2018
+
+        if (match = line.match(%r{setepisode\(
+          (?<id>\d+),
+          (?<day>\d+),
+          '(?<month>.*?)',
+          (?<start_hour>\d+),
+          (?<start_minute>\d+),
+          (?<end_hour>\d+),
+          (?<end_minute>\d+),
+          (?<tz>\d+),
+          '(?<name>.*?)',
+          (?<mode>\d+),
+          (?<chara>\d+(?:,\d+)*),
+          (?<done>\d+)
+        \);}x))
+          name = match['name'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
+          name = JSON.parse(%("#{name}"))
+          month = match['month'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
+          month = JSON.parse(%("#{month}"))
+
+          entries << ChronoEntry.new(
+            timeless: false,
+            name: name,
+            id: match['id'].to_i,
+            start: DateTime.new(year,
+                                MONTHS.invert[month],
+                                match['day'].to_i,
+                                match['start_hour'].to_i,
+                                match['start_minute'].to_i),
+            end_: DateTime.new(year,
+                               MONTHS.invert[month],
+                               match['day'].to_i,
+                               match['end_hour'].to_i,
+                               match['end_minute'].to_i),
+            chara: match['chara'].split(',').map(&:to_i),
+            tz: match['tz'].to_i
+          )
+        end
+      end
+    end
+  end
+end
+
+def main
+  read_chrono_pages
+
+  # episode_array = read_input_file.sort_by do |item|
+  #   arc_sort = item.arc.zero? ? 10 ** ARC_DIGITS - 1 : item.arc
+  #   arc_sort = "%0#{ARC_DIGITS}d" % arc_sort
+  #   "#{arc_sort} #{item.start} #{item.name}"
+  # end
+
+  # episode_array = episode_array
+  #                 .each
+  #                 .map(&:to_json)
+  #                 .join(",\n")
+  #                 .each_line
+  #                 .map {|line| '  ' + line}
+  #                 .join
+  # puts %([\n#{episode_array}\n])
 end
 
 main if $PROGRAM_NAME == __FILE__
