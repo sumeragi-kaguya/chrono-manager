@@ -253,6 +253,37 @@ def read_chrono_pages
             chara: match['chara'].split(',').map(&:to_i),
             tz: match['tz'].to_i
           )
+        elsif (match = line.match(%r{setepisodenotime\(
+          (?<id>\d+),
+          '(?<start_day>\d+)\ (?<start_month>.*?)',
+          '(?<end_day>\d+)\ (?<end_month>.*?)',
+          '(?<name>.*?)',
+          (?<mode>\d+),
+          (?<chara>\d+(?:,\d+)*),
+          (?<done>\d+)
+        \);}x))
+          name = match['name'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
+          name = JSON.parse(%("#{name}"))
+          start_month = match['start_month'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
+          start_month = JSON.parse(%("#{start_month}"))
+          end_month = match['end_month'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
+          end_month = JSON.parse(%("#{end_month}"))
+
+          # FORGOT ABOUT TZ SHIFT
+
+          entries << ChronoEntry.new(
+            timeless: false,
+            name: name,
+            id: match['id'].to_i,
+            start: DateTime.new(year,
+                                MONTHS.invert[start_month],
+                                match['start_day'].to_i),
+            end_: DateTime.new(year,
+                               MONTHS.invert[end_month],
+                               match['end_day'].to_i),
+            chara: match['chara'].split(',').map(&:to_i),
+            tz: 0
+          )
         end
       end
     end
