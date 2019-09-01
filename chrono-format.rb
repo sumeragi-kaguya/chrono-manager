@@ -311,7 +311,7 @@ def read_chrono_pages
                   (?:нпс)
                 )
               </div>\r?\n?
-              <div\ class="chstat">(?<done_string>.*?)</div>
+              <div\ class="chstat">(?<done_string>.*?)(?:</b>)?</div>
             }x)
 
             next unless match
@@ -441,7 +441,7 @@ def read_chrono_pages
                   (?:<a\ href="http://codegeass.ru/pages/id\d+">.*?</a>,?)*
                 )
               </div>
-              <div\ class="chstat">(?<done_string>.*?)</div>
+              <div\ class="chstat">(?<done_string>.*?)(?:</b>)?</div>
             </div>
           }x))
             day = match['day'].to_i
