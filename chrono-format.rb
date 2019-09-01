@@ -83,6 +83,14 @@ def pick_arc(date)
   0
 end
 
+def datetime_to_json(date)
+  "new Date(#{date.year}, " \
+           "#{date.month - 1}, " \
+           "#{date.day}, " \
+           "#{date.hour}, " \
+           "#{date.minute})"
+end
+
 def parse_big_ep_start_end(date_str)
   match = date_str.match(/^
     (?:(?<start_day>\d+)?
@@ -229,8 +237,8 @@ class ChronoEntry
   def to_json
     <<~JSON.chomp
       {"id": #{@id},
-       "start": "#{@start}",
-       "end": "#{@end}",
+       "start": #{datetime_to_json(@start)},
+       "end": #{datetime_to_json(@end)},
        "tz": #{@tz},
        "turn": #{@arc},
        "name": "#{CGI.escapeHTML(@name)}",
