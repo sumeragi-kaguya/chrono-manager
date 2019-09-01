@@ -526,22 +526,15 @@ def read_chrono_pages
 end
 
 def main
-  read_chrono_pages
+  episode_array = read_chrono_pages + read_input_file
 
-  # episode_array = read_input_file.sort_by do |item|
-  #   arc_sort = item.arc.zero? ? 10 ** ARC_DIGITS - 1 : item.arc
-  #   arc_sort = "%0#{ARC_DIGITS}d" % arc_sort
-  #   "#{arc_sort} #{item.start} #{item.name}"
-  # end
+  episode_array.sort_by! do |item|
+    arc_sort = item.arc.zero? ? 10**ARC_DIGITS - 1 : item.arc
+    arc_sort = format("%0#{ARC_DIGITS}d", arc_sort)
+    "#{arc_sort} #{item.start} #{item.name}"
+  end
 
-  # episode_array = episode_array
-  #                 .each
-  #                 .map(&:to_json)
-  #                 .join(",\n")
-  #                 .each_line
-  #                 .map {|line| '  ' + line}
-  #                 .join
-  # puts %([\n#{episode_array}\n])
+  puts episodes_to_json_by_arc episode_array
 end
 
 main if $PROGRAM_NAME == __FILE__
