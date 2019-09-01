@@ -26,8 +26,174 @@ require_relative 'data'
 JS_ARRAY_URI = 'http://forumfiles.ru/files/0010/8b/e4/23203.js'
 JS_ARRAY_NAME = File.basename(URI.parse(JS_ARRAY_URI).path)
 
+def pick_arc(date)
+  ARCS.reverse_each do |key, value|
+    return key if value && date >= value
+  end
+
+  0
+end
+
+def datetime_from_json_values(date_str)
+  date_ary = date_str.split(', ').map(&:to_i)
+
+  date_ary[1] += 1 if date_ary[1] # Stupid JS date month starts from 0
+
+  date_ary
+end
+
+class ChronoEntry
+  attr_reader :timeless, :name, :id, :start, :end, :chara, :tz, :arc
+
+  def self.from_string(string)
+    init_params = {}
+
+    string.each_line do |line|
+      if line.start_with? 'Название:'
+        init_params[:name] = line
+                             .delete_prefix('Название:')
+                             .strip
+                             .split(nil, 2)
+                             .last
+      elsif line.start_with? 'Id темы:'
+        init_params[:id] = line.delete_prefix('Id темы:').strip.to_i
+      elsif line.start_with? 'Начало:'
+        init_params[:start] = DateTime.strptime(
+          line.delete_prefix('Начало:').strip,
+          '%d.%m.%Y %H:%M'
+        )
+      elsif line.start_with? 'Дата:'
+        init_params[:start] = DateTime.strptime(
+          line.delete_prefix('Дата:').strip,
+          '%d.%m.%Y'
+        )
+      elsif line.start_with? 'Конец:'
+        init_params[:end_] = DateTime.strptime(
+          line.delete_prefix('Конец:').strip,
+          '%d.%m.%Y %H:%M'
+        )
+      elsif line.start_with? 'Персонажи:'
+        chara_string = line[/Персонажи: \[?(\d+(?:, \d+)*)?\]?/, 1]
+        init_params[:chara] = if chara_string
+                                chara_string.split(', ').map(&:to_i)
+                              else
+                                []
+                              end
+      elsif line.start_with? 'Часовой пояс:'
+        tz_candidates = line
+                        .gsub(/\[(\d+), ".*?"\]/, '\1')
+                        .scan(/\d+/)
+                        .map(&:to_i)
+
+        raise ArgumentError, 'Ambiguous timezone' if
+          tz_candidates.length > 1
+        raise ArgumentError, 'No timezone on timezone line' if
+          tz_candidates.empty?
+
+        init_params[:tz] = tz_candidates.first
+      end
+    end
+
+    init_params[:timeless] = !init_params.key?(:end_)
+
+    init_params[:start] = tz_shift(init_params[:start], init_params[:tz])
+    init_params[:end_] = tz_shift(init_params[:end_], init_params[:tz])
+
+    init_params[:done] = true
+
+    begin
+      new(init_params)
+    rescue ArgumentError
+      nil
+    end
+  end
+
+  def initialize(timeless: false,
+                 name:,
+                 id:,
+                 start:,
+                 end_: nil,
+                 chara:,
+                 tz:,
+                 done:)
+    @timeless = timeless
+    @name = name
+    @id = id
+    @start = start
+    @end = end_ ? end_ : start
+    @chara = chara
+    @tz = tz
+    @done = done
+
+    @arc = pick_arc(@start)
+  end
+
+  def html
+    unless @timeless
+      <<~HTML
+        <p id="#{@id}"></p>
+        <script type="text/javascript">
+        setepisode(#{@id},#{@start.day},"#{MONTHS[@start.month]}",#{@start.hour},#{@start.minute},#{@end.hour},#{@end.minute},#{@tz},#{JSON.dump(@name)},0,#{@chara.join(',')},1);
+        </script>
+      HTML
+    else
+      char_list = @chara.map do |char_chrono_id|
+        %(<a href="http://codegeass.ru/pages/id#{'%02d' % char_chrono_id}">) +
+          %(#{CGI.escapeHTML CHARS[char_chrono_id]}</a>)
+      end.join(', ')
+
+      <<~HTML
+        <div class="chep">
+        <div class="chtime1">#{@start.day} #{MONTHS[@start.month]} #{@start.year} года</div>
+        <div class="chepname"><a href="http://codegeass.ru/viewtopic.php?id=#{@id}">#{CGI.escapeHTML(@name)}</a></div>
+        <div class="chcast">#{char_list}</div>
+        <div class="chstat">Завершен</div>
+        </div>
+      HTML
+    end
+  end
+
+  def to_json
+    <<~JSON.chomp
+      {"id": #{@id},
+       "start": #{datetime_to_json(@start)},
+       "end": #{@end == @start ? "null" : datetime_to_json(@end)},
+       "tz": #{@tz},
+       "turn": #{@arc},
+       "name": #{JSON.dump(@name)},
+       "mode": 0,
+       "chara": #{@chara},
+       "done": #{@done}
+      }
+    JSON
+  end
+end
+
+def read_js_episodes
+  Net::HTTP.start('forumfiles.ru') do |http|
+    response = http.get(JS_ARRAY_URI)
+    json = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
+    json = json.delete_prefix('var datach = ')
+    json.gsub!(/new Date\(((?:-?\d+(?:, )?)+)\)/, '"\1"')
+    x = JSON.parse(json)
+    x.values.flatten.map do |params|
+      ChronoEntry.new(
+        name: params['name'],
+        id: params['id'],
+        start: DateTime.new(*datetime_from_json_values(params['start'])),
+        end_: if params['end']
+                DateTime.new(*datetime_from_json_values(params['end']))
+              end,
+        chara: params['chara'],
+        tz: params['tz'],
+        done: params['done']
+      )
+    end
+  end
+end
+
 def main
-  pp JS_ARRAY_NAME
+  pp read_js_episodes
 end
 
 main if $PROGRAM_NAME == __FILE__
