@@ -60,17 +60,6 @@ MONTHS_NOMINATIVE = {
 
 MONTHS_NOMINATIVE_BACK = MONTHS_NOMINATIVE.invert.freeze
 
-ARCS = {
-  0 => nil,
-  1 => DateTime.new(2017, 7, 14, 23),
-  2 => DateTime.new(2017, 9, 1),
-  3 => DateTime.new(2017, 10, 1),
-  4 => DateTime.new(2017, 10, 16),
-  5 => DateTime.new(2017, 11, 1),
-  6 => DateTime.new(2017, 12, 1),
-  7 => DateTime.new(2018, 1, 1)
-}.freeze
-
 def tz_shift(datetime, tz)
   tz && datetime ? datetime - Rational(tz, 24) : datetime
 end

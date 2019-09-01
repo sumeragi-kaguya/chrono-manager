@@ -15,6 +15,19 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
+require 'time'
+
+ARCS = {
+  0 => nil,
+  1 => DateTime.new(2017, 7, 14, 23),
+  2 => DateTime.new(2017, 9, 1),
+  3 => DateTime.new(2017, 10, 1),
+  4 => DateTime.new(2017, 10, 16),
+  5 => DateTime.new(2017, 11, 1),
+  6 => DateTime.new(2017, 12, 1),
+  7 => DateTime.new(2018, 1, 1)
+}.freeze
+
 CHARS = {
   1 => 'Лелуш ви Британия',
   2 => 'Милли Эшфорд',
