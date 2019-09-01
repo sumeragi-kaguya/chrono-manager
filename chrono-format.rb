@@ -241,7 +241,7 @@ class ChronoEntry
        "end": #{@end == @start ? "null" : datetime_to_json(@end)},
        "tz": #{@tz},
        "turn": #{@arc},
-       "name": "#{CGI.escapeHTML(@name)}",
+       "name": #{JSON.dump(@name)},
        "mode": 0,
        "chara": #{@chara},
        "done": #{@done}
