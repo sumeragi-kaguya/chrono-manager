@@ -172,6 +172,8 @@ class ChronoEntry
     init_params[:start] = tz_shift(init_params[:start], init_params[:tz])
     init_params[:end_] = tz_shift(init_params[:end_], init_params[:tz])
 
+    init_params[:done] = true
+
     begin
       new(init_params)
     rescue ArgumentError
@@ -185,7 +187,8 @@ class ChronoEntry
                  start:,
                  end_: nil,
                  chara:,
-                 tz:)
+                 tz:,
+                 done:)
     @timeless = timeless
     @name = name
     @id = id
@@ -193,6 +196,7 @@ class ChronoEntry
     @end = end_
     @chara = chara
     @tz = tz
+    @done = done
 
     @arc = pick_arc(@start)
   end
@@ -232,7 +236,7 @@ class ChronoEntry
        "name": "#{CGI.escapeHTML(@name)}",
        "mode": 0,
        "chara": #{@chara},
-       "done": true
+       "done": #{@done}
       }
     JSON
   end
@@ -323,7 +327,8 @@ def read_chrono_pages
               start: start,
               end_: end_,
               chara: chara,
-              tz: 0
+              tz: 0,
+              done: done
             )
           else
             big_ep_str << line
@@ -363,6 +368,8 @@ def read_chrono_pages
 
             end_ += 1 if end_ < start
 
+            done = !match['done'].to_i.zero?
+
             entries << ChronoEntry.new(
               timeless: false,
               name: name,
@@ -370,7 +377,8 @@ def read_chrono_pages
               start: start,
               end_: end_,
               chara: match['chara'].to_s.split(',').map(&:to_i),
-              tz: tz
+              tz: tz,
+              done: done
             )
           elsif (match = line.match(%r{setepisodenotime\(
             (?<id>\d+),
@@ -387,6 +395,7 @@ def read_chrono_pages
             start_month = JSON.parse(%("#{start_month}"))
             end_month = match['end_month'].gsub(/((?:^|[^\\])(?:\\\\)*)"/, '\1\"')
             end_month = JSON.parse(%("#{end_month}"))
+            done = !match['done'].to_i.zero?
 
             entries << ChronoEntry.new(
               timeless: false,
@@ -399,7 +408,8 @@ def read_chrono_pages
                                  MONTHS_BACK[end_month],
                                  match['end_day'].to_i),
               chara: match['chara'].to_s.split(',').map(&:to_i),
-              tz: 0
+              tz: 0,
+              done: done
             )
           elsif (match = line.match(%r{
             <div\ class="chep">
@@ -472,7 +482,8 @@ def read_chrono_pages
               start: start,
               end_: end_,
               chara: chara,
-              tz: tz
+              tz: tz,
+              done: done
             )
           end
         end
