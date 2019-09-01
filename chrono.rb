@@ -43,7 +43,7 @@ def datetime_from_json_values(date_str)
 end
 
 class ChronoEntry
-  attr_reader :timeless, :name, :id, :start, :end, :chara, :tz, :arc
+  attr_reader :timeless, :name, :id, :start, :end, :chara, :tz, :arc, :done
 
   def self.from_string(string)
     init_params = {}
@@ -192,8 +192,58 @@ def read_js_episodes
   end
 end
 
+def parse_episode_page(page)
+  normal_header_rx = %r{
+    1\.\ ?Дата:\ *(?<date>.+?)(?:года)?\ *\.?<br\ />.*?
+    2\.\ ?Время\ старта:\ *(?<start_time>.+?)\ *\.?<br\ />.*?
+    3\.\ ?Время\ окончания:\ *(?<end_time>.+?)\ *\.?<br\ />.*
+    5\.\ ?Персонажи:\ *(?<chara>.+?)\ *\.?\ *<br\ />.*
+    6\.\ ?Место\ действия:\ *(?<location>.+?)\ *\.?<br\ />.*
+  }x
+  flashback_header_rx = %r{
+    1\.\ ?Дата:\ *(?<date>.+?)(?:года)?\ *\.?<br\ />.*?
+    2\.\ ?Персонажи:\ *(?<chara>.+?)\ *\.?<br\ />.*
+    3\.\ ?Место\ действия:\ *(?<location>.+?)\ *\.?<br\ />.*
+  }x
+
+  in_header = false
+  params = {}
+
+  page.each_line do |line|
+    if !params[:name]
+      if (match = line.match(%r{<h1><span>(.+)</span></h1>}))
+        params[:name] = match[1]
+        next
+      end
+    elsif !in_header
+      if (match = line.match(/<div id="p([0-9]+)" class="post(?: (topicpost|altstyle))?"/))
+        in_header = match[2] == 'topicpost'
+        next
+      end
+    else
+      line.gsub!(%r{</?strong>}, '')
+      match = line.match(normal_header_rx) || line.match(flashback_header_rx)
+    end
+
+    pp match if match
+  end
+end
+
+def update_active_episodes(episodes)
+  Net::HTTP.start('codegeass.ru') do |http|
+    episodes.each do |episode|
+      next if episode.done
+
+      response = http.get("http://codegeass.ru/viewtopic.php?id=#{episode.id}")
+      body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
+      parse_episode_page(body)
+    end
+  end
+end
+
 def main
-  pp read_js_episodes
+  episodes = read_js_episodes
+  update_active_episodes(episodes)
 end
 
 main if $PROGRAM_NAME == __FILE__
