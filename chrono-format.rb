@@ -62,7 +62,7 @@ MONTHS_NOMINATIVE_BACK = MONTHS_NOMINATIVE.invert.freeze
 
 ARCS = {
   0 => nil,
-  1 => DateTime.new(2017, 7, 15),
+  1 => DateTime.new(2017, 7, 14, 23),
   2 => DateTime.new(2017, 9, 1),
   3 => DateTime.new(2017, 10, 1),
   4 => DateTime.new(2017, 10, 16),
