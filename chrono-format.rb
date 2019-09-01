@@ -93,7 +93,7 @@ end
 
 def episodes_to_json_by_arc(episodes)
   episodes_grouped = episodes.group_by(&:arc)
-  episodes_str = +"{\n"
+  episodes_str = +"var datach = {\n"
 
   first = true
   episodes_grouped.each do |arc, eps|
@@ -534,7 +534,7 @@ def main
     "#{arc_sort} #{item.start} #{item.name}"
   end
 
-  puts episodes_to_json_by_arc episode_array
+  puts episodes_to_json_by_arc(episode_array).encode(Encoding::Windows_1251)
 end
 
 main if $PROGRAM_NAME == __FILE__
