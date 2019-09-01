@@ -201,7 +201,7 @@ class ChronoEntry
     @name = name
     @id = id
     @start = start
-    @end = end_
+    @end = end_ ? end_ : start
     @chara = chara
     @tz = tz
     @done = done
@@ -238,7 +238,7 @@ class ChronoEntry
     <<~JSON.chomp
       {"id": #{@id},
        "start": #{datetime_to_json(@start)},
-       "end": #{datetime_to_json(@end)},
+       "end": #{@end == @start ? "null" : datetime_to_json(@end)},
        "tz": #{@tz},
        "turn": #{@arc},
        "name": "#{CGI.escapeHTML(@name)}",
