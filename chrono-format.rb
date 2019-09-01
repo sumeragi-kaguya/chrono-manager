@@ -521,6 +521,8 @@ def read_chrono_pages
       end
     end
   end
+
+  entries
 end
 
 def main
