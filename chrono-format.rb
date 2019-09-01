@@ -91,6 +91,29 @@ def datetime_to_json(date)
            "#{date.minute})"
 end
 
+def episodes_to_json_by_arc(episodes)
+  episodes_grouped = episodes.group_by(&:arc)
+  episodes_str = +"{\n"
+
+  first = true
+  episodes_grouped.each do |arc, eps|
+    episodes_str << ",\n" unless first
+    first = false
+    episodes_str << %(  "#{arc}": [\n)
+    episodes_str << eps.each
+                    .map(&:to_json)
+                    .join(",\n")
+                    .each_line
+                    .map { |line| '    ' + line }
+                    .join
+    episodes_str << "\n  ]"
+  end
+
+  episodes_str << "\n}"
+
+  episodes_str
+end
+
 def parse_big_ep_start_end(date_str)
   match = date_str.match(/^
     (?:(?<start_day>\d+)?
