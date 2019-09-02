@@ -237,7 +237,7 @@ def parse_characters(chars_string)
   chars_string = chars_string.gsub(/\(.*?\)/, '').gsub(/&nbsp;/, ' ')
   chars = chars_string.split(/ *, */)
 
-  char_map = {}
+  char_list = []
   unknowns = []
 
   chars.each do |char_string|
@@ -246,18 +246,16 @@ def parse_characters(chars_string)
     if (match = char_string.strip.match(%r{
     <a\ href=".*?\?id=(?<id>\d+)".*?>(?<name>.*?)</a>
     }x))
-      char_map[match['name'].strip] = CHARS_ID[match['id'].to_i]
-      # Resolve via profile!!
-      # elsif value != CHARS[key]
-      #   raise BadCharRef, "Wrong name for this char id! #{key} should be #{CHARS[key]}, not #{value}"
+      # Resolve via chrono id!
+      char_list << CHARS_ID[match['id'].to_i]
     elsif CHARS_BACK[char_string]
-      char_map[char_string] = CHARS_BACK[char_string]
+      char_list << CHARS_BACK[char_string]
     else
       unknowns << char_string
     end
   end
 
-  [char_map, unknowns]
+  [char_list, unknowns]
 end
 
 def parse_tz(location_string)
