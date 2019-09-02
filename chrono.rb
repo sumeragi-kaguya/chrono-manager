@@ -328,7 +328,11 @@ def parse_episode_page(page)
       end
     params[:chara], unknown_characters = parse_characters match['chara']
     params[:tz] = parse_tz(match['location']) || 0
+
+    break
   end
+
+  params
 end
 
 def update_active_episodes(episodes)
