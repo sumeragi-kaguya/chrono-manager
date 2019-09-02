@@ -143,6 +143,24 @@ class ChronoEntry
     @arc = pick_arc(@start)
   end
 
+  def update(timeless: nil,
+             name: nil,
+             id: nil,
+             start: nil,
+             end_: nil,
+             chara: nil,
+             tz: nil,
+             done: nil)
+    @timeless = timeless unless timeless.nil?
+    @name = name unless name.nil?
+    @id = id unless id.nil?
+    @start = start unless start.nil?
+    @end = end_ || start unless end_.nil? && start.nil?
+    @chara = chara unless chara.nil?
+    @tz = tz unless tz.nil?
+    @done = done unless done.nil?
+  end
+
   def html
     unless @timeless
       <<~HTML
@@ -342,7 +360,8 @@ def update_active_episodes(episodes)
 
       response = http.get("http://codegeass.ru/viewtopic.php?id=#{episode.id}")
       body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
-      parse_episode_page(body)
+      episode_data = parse_episode_page(body)
+      episode.update(episode_data)
     end
   end
 end
