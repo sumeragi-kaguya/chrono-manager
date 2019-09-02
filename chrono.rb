@@ -294,7 +294,14 @@ def parse_episode_page(page)
   params = {}
 
   page.each_line do |line|
-    if !params[:name]
+    if params[:done].nil?
+      if (match = line.match(
+        /^FORUM\.set\('topic', \{ "subject": ".*?", "closed": "(\d)",/
+      ))
+        params[:done] = match[1].to_i == 1
+        next
+      end
+    elsif params[:name].nil?
       if (match = line.match(%r{<h1><span>(.+)</span></h1>}))
         params[:name] = match[1].split(nil, 2).last
         next
