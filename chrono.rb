@@ -298,7 +298,7 @@ def parse_episode_page(page)
   page.each_line do |line|
     if !params[:name]
       if (match = line.match(%r{<h1><span>(.+)</span></h1>}))
-        params[:name] = match[1]
+        params[:name] = match[1].split(nil, 2).last
         next
       end
     elsif !in_header
