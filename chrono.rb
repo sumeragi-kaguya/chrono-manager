@@ -172,7 +172,7 @@ class ChronoEntry
     <<~JSON.chomp
       {"id": #{@id},
        "start": #{datetime_to_json(@start)},
-       "end": #{@end == @start ? "null" : datetime_to_json(@end)},
+       "end": #{@end == @start ? 'null' : datetime_to_json(@end)},
        "tz": #{@tz},
        "turn": #{@arc},
        "name": #{JSON.dump(@name)},
