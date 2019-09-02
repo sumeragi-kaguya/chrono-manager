@@ -135,7 +135,7 @@ class ChronoEntry
     @name = name
     @id = id
     @start = start
-    @end = end_ ? end_ : start
+    @end = end_ || start
     @chara = chara
     @tz = tz
     @done = done
