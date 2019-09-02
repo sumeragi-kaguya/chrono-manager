@@ -26,6 +26,21 @@ require_relative 'data'
 JS_ARRAY_URI = 'http://forumfiles.ru/files/0010/8b/e4/23203.js'
 JS_ARRAY_NAME = File.basename(URI.parse(JS_ARRAY_URI).path)
 
+MONTH_REPLACE = {
+  'января' => 'Jan',
+  'февраля' => 'Feb',
+  'марта' => 'Mar',
+  'апреля' => 'Apr',
+  'мая' => 'May',
+  'июня' => 'Jun',
+  'июля' => 'Jul',
+  'августа' => 'Aug',
+  'сентября' => 'Sep',
+  'октября' => 'Oct',
+  'ноября' => 'Nov',
+  'декабря' => 'Dec'
+}.freeze
+
 def pick_arc(date)
   ARCS.reverse_each do |key, value|
     return key if value && date >= value
@@ -192,6 +207,77 @@ def read_js_episodes
   end
 end
 
+def parse_datetime(date_string, time_string)
+  date_string = date_string.strip
+
+  case date_string
+  when /^\d?\d\.\d?\d\.\d\d$/
+    format = '%d.%m.%y'
+  when /^\d?\d\.\d?\d\.\d{4}$/
+    format = '%d.%m.%Y'
+  when /^\d?\d [^ ]+ \d{4}$/
+    date_string.gsub!(Regexp.union(MONTH_REPLACE.keys), MONTH_REPLACE)
+    format = '%d %b %Y'
+  end
+
+  return nil unless format
+
+  dt_string = if time_string
+                time_string = time_string.strip.gsub('.', ':')
+                format += ' %H:%M'
+                "#{date_string} #{time_string}"
+              else
+                date_string
+              end
+
+  DateTime.strptime(dt_string, format)
+end
+
+def parse_characters(chars_string)
+  chars_string = chars_string.gsub(/\(.*?\)/, '').gsub(/&nbsp;/, ' ')
+  chars = chars_string.split(/ *, */)
+
+  char_map = {}
+  unknowns = []
+
+  chars.each do |char_string|
+    char_string.strip!
+
+    if (match = char_string.strip.match(%r{
+    <a\ href=".*?\?id=(?<id>\d+)".*?>(?<name>.*?)</a>
+    }x))
+      char_map[match['name'].strip] = CHARS_ID[match['id'].to_i]
+      # Resolve via profile!!
+      # elsif value != CHARS[key]
+      #   raise BadCharRef, "Wrong name for this char id! #{key} should be #{CHARS[key]}, not #{value}"
+    elsif CHARS_BACK[char_string]
+      char_map[char_string] = CHARS_BACK[char_string]
+    else
+      unknowns << char_string
+    end
+  end
+
+  [char_map, unknowns]
+end
+
+def parse_tz(location_string)
+  tz = location_string[/PND\+(\d+)/, 1]
+
+  tz ||= TIMEZONES[location_string]
+
+  unless tz
+    tz = []
+    TIMEZONES.each do |region, timezone|
+      next if tz.include?(timezone) ||
+              !location_string.downcase.include?(region.downcase)
+
+      tz << timezone
+    end
+  end
+
+  tz[0] if tz.length == 1
+end
+
 def parse_episode_page(page)
   normal_header_rx = %r{
     1\.\ ?Дата:\ *(?<date>.+?)(?:года)?\ *\.?<br\ />.*?
@@ -225,7 +311,18 @@ def parse_episode_page(page)
       match = line.match(normal_header_rx) || line.match(flashback_header_rx)
     end
 
-    pp match if match
+    next unless match
+
+    params[:start], params[:end_] =
+      if match.names.include?('start_time')
+        [parse_datetime(match['date'], match['start_time']),
+         parse_datetime(match['date'], match['end_time'])]
+      else
+        [parse_datetime(match['date'], nil),
+         nil]
+      end
+    params[:characters], unknown_characters = parse_characters match['chara']
+    params[:tz] = parse_tz(match['location']) || 0
   end
 end
 
