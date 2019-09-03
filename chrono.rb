@@ -40,6 +40,21 @@ MONTH_REPLACE = {
   'ноября' => 'Nov',
   'декабря' => 'Dec'
 }.freeze
+SEARCH_FORUMS = {
+  'turn1': 41,
+  'turn2': 50,
+  'turn3': 58,
+  'turn4': 43,
+  'turn5': 71,
+  'turn6': 84,
+  'turn7': 95,
+  'turn7_open': 93,
+  'personal': 63,
+  'past': 70,
+  'flashback': 68,
+  'purgatory': 89
+}.freeze
+FORUM_BASE_LINK = 'http://codegeass.ru/viewforum.php'
 
 def tz_shift(datetime, tz)
   tz && datetime ? datetime - Rational(tz, 24) : datetime
@@ -385,9 +400,74 @@ def update_active_episodes(episodes)
   end
 end
 
+def get_all_episode_ids
+  episode_ids = []
+
+  Net::HTTP.start('codegeass.ru') do |http|
+    SEARCH_FORUMS.each_value do |value|
+      page = 1
+      last_page = false
+
+      until last_page
+        response = http.get("#{FORUM_BASE_LINK}?id=#{value}&p=#{page}")
+
+        body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
+
+        body.each_line do |line|
+          if !last_page && (match = line.match(%r{
+            <h2>
+              <span\ class="item1">Тем<\/span>
+              \ <span\ class="item2">
+                [0-9]+\ страница\ ([0-9]+)\ из\ ([0-9]+)
+              </span>
+            </h2>
+          }x))
+            last_page = match[1] == match[2]
+          end
+
+          if (match = line.match(%r{
+            <div\ class="tclcon">
+              .*
+              <a\ href="http://codegeass.ru/viewtopic.php\?id=(\d+)">
+          }x))
+            episode_id = match[1].gsub('&amp;', '&').to_i
+            episode_ids << episode_id
+          end
+        end
+
+        page += 1
+      end
+    end
+  end
+
+  episode_ids
+end
+
+def add_new_episodes(episodes)
+  known_episode_ids = episodes.each.map(&:id)
+  new_episode_ids = get_all_episode_ids - known_episode_ids
+
+  Net::HTTP.start('codegeass.ru') do |http|
+    new_episode_ids.each do |episode_id|
+      response = http.get("http://codegeass.ru/viewtopic.php?id=#{episode_id}")
+      body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
+
+      data = parse_episode_page(body)
+      data[:id] = episode_id
+
+      begin
+        episode = ChronoEntry.new(data)
+      rescue ArgumentError, NoMethodError
+        p data
+      end
+    end
+  end
+end
+
 def main
   episodes = read_js_episodes
   update_active_episodes(episodes)
+  add_new_episodes(episodes)
 end
 
 main if $PROGRAM_NAME == __FILE__
