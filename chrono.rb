@@ -41,6 +41,10 @@ MONTH_REPLACE = {
   'декабря' => 'Dec'
 }.freeze
 
+def tz_shift(datetime, tz)
+  tz && datetime ? datetime - Rational(tz, 24) : datetime
+end
+
 def pick_arc(date)
   ARCS.reverse_each do |key, value|
     return key if value && date >= value
@@ -342,6 +346,9 @@ def parse_episode_page(page)
       end
     params[:chara], unknown_characters = parse_characters match['chara']
     params[:tz] = parse_tz(match['location']) || 0
+
+    params[:start] = tz_shift(params[:start], params[:tz])
+    params[:end_] = tz_shift(params[:end_], params[:tz])
 
     break
   end
