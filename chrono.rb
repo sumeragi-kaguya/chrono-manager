@@ -336,7 +336,7 @@ def parse_episode_page(page)
       if (match = line.match(
         /^FORUM\.set\('topic', \{ "subject": "(.*?)", "closed": "(\d)",/
       ))
-        params[:name] = match[1][/(?:([-\d]+.\d+.\d+.) )?(.*)/, 2]
+        params[:name] = match[1][/(?:([?\d.-]+)\. )?(.*)/, 2]
         params[:done] = match[2].to_i == 1
         next
       end
