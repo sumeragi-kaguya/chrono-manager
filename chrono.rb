@@ -250,15 +250,23 @@ def parse_datetime(date_string, time_string)
 
   return nil unless format
 
-  dt_string = if time_string
-                time_string = time_string.strip.gsub('.', ':')
-                format += ' %H:%M'
-                "#{date_string} #{time_string}"
-              else
-                date_string
-              end
+  if time_string
+    time_string = time_string.strip.gsub('.', ':')
 
-  DateTime.strptime(dt_string, format)
+    if (match = time_string.match(/^\d\d:\d\d:\d\d/))
+      format += ' %H:%M:%S'
+      time_string = match[0]
+    elsif (match = time_string.match(/^\d\d:\d\d/))
+      format += ' %H:%M'
+      time_string = match[0]
+    else
+      time_string = nil
+    end
+  end
+
+  date_string << " #{time_string}" if time_string
+
+  DateTime.strptime(date_string, format)
 end
 
 def parse_characters(chars_string)
