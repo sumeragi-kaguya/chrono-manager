@@ -283,7 +283,7 @@ def parse_characters(chars_string)
     <a\ href=".*?\?id=(?<id>\d+)".*?>(?<name>.*?)</a>
     }x))
       # Resolve via chrono id!
-      char_list << CHARS_ID[match['id'].to_i]
+      char_list << CHARS_BACK[char_string]
     elsif CHARS_BACK[char_string]
       char_list << CHARS_BACK[char_string]
     else
