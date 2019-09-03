@@ -312,16 +312,12 @@ def parse_episode_page(page)
   params = {}
 
   page.each_line do |line|
-    if params[:done].nil?
+    if params[:done].nil? && params[:name].nil?
       if (match = line.match(
-        /^FORUM\.set\('topic', \{ "subject": ".*?", "closed": "(\d)",/
+        /^FORUM\.set\('topic', \{ "subject": "(.*?)", "closed": "(\d)",/
       ))
-        params[:done] = match[1].to_i == 1
-        next
-      end
-    elsif params[:name].nil?
-      if (match = line.match(%r{<h1><span>(.+)</span></h1>}))
         params[:name] = match[1].split(nil, 2).last
+        params[:done] = match[2].to_i == 1
         next
       end
     elsif !in_header
