@@ -307,9 +307,11 @@ def parse_tz(location_string)
 
       tz << timezone
     end
+
+    tz = tz.length == 1 ? tz[0] : nil
   end
 
-  tz[0] if tz.length == 1
+  tz
 end
 
 def parse_episode_page(page)
