@@ -165,6 +165,12 @@ class ChronoEntry
     @done = done unless done.nil?
   end
 
+  def ==(other)
+    other.is_a?(ChronoEntry) && instance_variables.map do |v|
+      send(:instance_variable_get, v) == other.send(:instance_variable_get, v)
+    end.all?
+  end
+
   def html
     unless @timeless
       <<~HTML
