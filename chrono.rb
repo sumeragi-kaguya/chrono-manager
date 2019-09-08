@@ -26,7 +26,7 @@ require_relative 'data'
 ARC_DIGITS = 2
 JS_ARRAY_URI = 'http://forumfiles.ru/files/0010/8b/e4/23203.js'
 JS_ARRAY_NAME = File.basename(URI.parse(JS_ARRAY_URI).path)
-OUTPUT_FILE = '23203.js'
+OUTPUT_FILE = JS_ARRAY_NAME.end_with?('.js') ? JS_ARRAY_NAME : 'blah.js'
 
 MONTH_REPLACE = {
   'января' => 'Jan',
