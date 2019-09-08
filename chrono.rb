@@ -419,6 +419,8 @@ def parse_episode_page(page)
     params[:start] = tz_shift(params[:start], params[:tz])
     params[:end_] = tz_shift(params[:end_], params[:tz])
 
+    params[:end_] += 1 if params[:end_] && params[:end_] < params[:start]
+
     break
   end
 
