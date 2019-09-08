@@ -76,6 +76,14 @@ def datetime_from_json_values(date_str)
   date_ary
 end
 
+def datetime_to_json(date)
+  "new Date(#{date.year}, " \
+           "#{date.month - 1}, " \
+           "#{date.day}, " \
+           "#{date.hour}, " \
+           "#{date.minute})"
+end
+
 class ChronoEntry
   attr_reader :timeless, :name, :id, :start, :end, :chara, :tz, :arc, :done
 
