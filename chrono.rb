@@ -26,6 +26,7 @@ require_relative 'data'
 ARC_DIGITS = 2
 JS_ARRAY_URI = 'http://forumfiles.ru/files/0010/8b/e4/23203.js'
 JS_ARRAY_NAME = File.basename(URI.parse(JS_ARRAY_URI).path)
+OUTPUT_FILE = '23203.js'
 
 MONTH_REPLACE = {
   'января' => 'Jan',
@@ -507,6 +508,10 @@ def main
     arc_sort = item.arc.zero? ? 10**ARC_DIGITS - 1 : item.arc
     arc_sort = format("%0#{ARC_DIGITS}d", arc_sort)
     "#{arc_sort} #{item.start} #{item.name}"
+  end
+
+  File.open(OUTPUT_FILE, 'w') do |file|
+    file.puts episodes_to_json_by_arc(episodes).encode(Encoding::Windows_1251)
   end
 end
 
