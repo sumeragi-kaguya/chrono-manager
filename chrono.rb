@@ -407,6 +407,7 @@ def parse_episode_page(page)
         [parse_datetime(match['date'], nil),
          nil]
       end
+
     params[:chara], unknown_characters = parse_characters match['chara']
     params[:tz] = parse_tz(match['location']) || 0
 
