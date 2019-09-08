@@ -397,7 +397,7 @@ def parse_episode_page(page)
         next
       end
     elsif !in_header
-      if (match = line.match(/<div id="p([0-9]+)" class="post(?: (topicpost|altstyle))?"/))
+      if (match = line.match(/<div id="p([0-9]+)" class="post(?: (topicpost|altstyle))?.*?"/))
         in_header = match[2] == 'topicpost'
         next
       end
