@@ -284,38 +284,31 @@ def read_js_episodes
   end
 end
 
-def parse_datetime(date_string, time_string)
+def parse_date(date_string)
   date_string = date_string.strip
 
   case date_string
   when /^\d?\d\.\d?\d\.\d\d$/
-    format = '%d.%m.%y'
+    date = date_string.split('.').map(&:to_i).reverse
+    date[0] += 2000
+    date
   when /^\d?\d\.\d?\d\.\d{4}$/
-    format = '%d.%m.%Y'
+    date_string.split('.').map(&:to_i).reverse
   when /^\d?\d [^ ]+ \d{4}$/
     date_string.gsub!(Regexp.union(MONTH_REPLACE.keys), MONTH_REPLACE)
-    format = '%d %m %Y'
+    date_string.split(' ').map(&:to_i).reverse
   end
+end
 
-  return nil unless format
+def parse_time(time_string)
+  time_string = time_string.strip.gsub('.', ':')
 
-  if time_string
-    time_string = time_string.strip.gsub('.', ':')
-
-    if (match = time_string.match(/^\d?\d:\d\d:\d\d/))
-      format += ' %H:%M:%S'
-      time_string = match[0]
-    elsif (match = time_string.match(/^\d?\d:\d\d/))
-      format += ' %H:%M'
-      time_string = match[0]
-    else
-      time_string = nil
-    end
+  case time_string
+  when /^\d?\d:\d\d:\d\d/
+    time_string.split(':').map(&:to_i)
+  when /^\d?\d:\d\d/
+    time_string.split(':').map(&:to_i)
   end
-
-  date_string << " #{time_string}" if time_string
-
-  DateTime.strptime(date_string, format)
 end
 
 def parse_characters(chars_string)
@@ -404,14 +397,19 @@ def parse_episode_page(page)
 
     next unless match
 
-    params[:start], params[:end_] =
-      if match.names.include?('start_time')
-        [parse_datetime(match['date'], match['start_time']),
-         parse_datetime(match['date'], match['end_time'])]
-      else
-        [parse_datetime(match['date'], nil),
-         nil]
-      end
+    if match.names.include?('date')
+      date = parse_date(match['date'])
+    end
+
+    if match.names.include?('start_time')
+      start_time = parse_time(match['start_time'])
+      end_time = parse_time(match['end_time'])
+    end
+
+    if date
+      params[:start] = DateTime.new(*(date + (start_time || [])))
+      params[:end_] = DateTime.new(*(date + (end_time || [])))
+    end
 
     params[:chara], unknown_characters = parse_characters match['chara']
     params[:tz] = parse_tz(match['location']) || 0
