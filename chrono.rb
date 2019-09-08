@@ -23,6 +23,7 @@ require 'uri'
 
 require_relative 'data'
 
+ARC_DIGITS = 2
 JS_ARRAY_URI = 'http://forumfiles.ru/files/0010/8b/e4/23203.js'
 JS_ARRAY_NAME = File.basename(URI.parse(JS_ARRAY_URI).path)
 
@@ -501,6 +502,12 @@ def main
   episodes = read_js_episodes
   update_active_episodes(episodes)
   add_new_episodes(episodes)
+
+  episodes.sort_by! do |item|
+    arc_sort = item.arc.zero? ? 10**ARC_DIGITS - 1 : item.arc
+    arc_sort = format("%0#{ARC_DIGITS}d", arc_sort)
+    "#{arc_sort} #{item.start} #{item.name}"
+  end
 end
 
 main if $PROGRAM_NAME == __FILE__
