@@ -29,18 +29,18 @@ JS_ARRAY_NAME = File.basename(URI.parse(JS_ARRAY_URI).path)
 OUTPUT_FILE = JS_ARRAY_NAME.end_with?('.js') ? JS_ARRAY_NAME : 'blah.js'
 
 MONTH_REPLACE = {
-  'января' => 'Jan',
-  'февраля' => 'Feb',
-  'марта' => 'Mar',
-  'апреля' => 'Apr',
-  'мая' => 'May',
-  'июня' => 'Jun',
-  'июля' => 'Jul',
-  'августа' => 'Aug',
-  'сентября' => 'Sep',
-  'октября' => 'Oct',
-  'ноября' => 'Nov',
-  'декабря' => 'Dec'
+  'января' => '1',
+  'февраля' => '2',
+  'марта' => '3',
+  'апреля' => '4',
+  'мая' => '5',
+  'июня' => '6',
+  'июля' => '7',
+  'августа' => '8',
+  'сентября' => '9',
+  'октября' => '10',
+  'ноября' => '11',
+  'декабря' => '12'
 }.freeze
 SEARCH_FORUMS = {
   'turn1': 41,
@@ -294,7 +294,7 @@ def parse_datetime(date_string, time_string)
     format = '%d.%m.%Y'
   when /^\d?\d [^ ]+ \d{4}$/
     date_string.gsub!(Regexp.union(MONTH_REPLACE.keys), MONTH_REPLACE)
-    format = '%d %b %Y'
+    format = '%d %m %Y'
   end
 
   return nil unless format
