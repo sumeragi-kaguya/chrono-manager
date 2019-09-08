@@ -491,7 +491,7 @@ def add_new_episodes(episodes)
       data[:id] = episode_id
 
       begin
-        episode = ChronoEntry.new(data)
+        episodes << ChronoEntry.new(data)
       rescue ArgumentError, NoMethodError
         p data
       end
