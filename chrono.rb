@@ -328,11 +328,14 @@ def parse_characters(chars_string)
   chars.each do |char_string|
     char_string.strip!
 
-    if (match = char_string.strip.match(%r{
+    if !(matches = char_string.strip.scan(%r{
     <a\ href=".*?\?id=(?<id>\d+)".*?>(?<name>.*?)</a>
-    }x))
+    }x)).empty?
       # Resolve via chrono id!
-      char_list << CHARS_BACK[char_string]
+      matches.each do |char_id, char_name|
+        char = CHARS_BACK[char_name]
+        char_list << char if char
+      end
     elsif CHARS_BACK[char_string]
       char_list << CHARS_BACK[char_string]
     else
