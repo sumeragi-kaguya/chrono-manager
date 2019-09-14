@@ -409,10 +409,8 @@ def parse_episode_page(page)
 
     next unless match
 
-    if match.names.include?('date')
-      date = parse_date(match['date'])
-      complaints << complain(:date, match['date']) unless date
-    end
+    date = parse_date(match['date'])
+    complaints << complain(:date, match['date']) unless date
 
     if match.names.include?('start_time')
       start_time = parse_time(match['start_time'])
