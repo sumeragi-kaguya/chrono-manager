@@ -453,24 +453,30 @@ end
 
 def update_active_episodes(episodes)
   Net::HTTP.start('codegeass.ru') do |http|
-    episodes.each do |episode|
+    episodes.each_with_index do |episode, index|
       next if episode.done
-
-      old_e = episode.dup
 
       link = "http://codegeass.ru/viewtopic.php?id=#{episode.id}"
       response = http.get(link)
       body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
       data, complaints = parse_episode_page(body)
-      episode.update(data)
+      data[:id] = episode.id
 
-      if episode != old_e
+      begin
+        new_episode = ChronoEntry.new(data)
+      rescue ArgumentError, NoMethodError
         puts <<~BAD_HEADER
           Плохое оформление шапки эпизода "#{data[:name]}" ====> #{link}
           #{complaints.join("\n")}
 
         BAD_HEADER
+        next
       end
+
+      # This line is kinda useless right now (could just do the assignment in
+      # the block above), but later on a message about the update will be
+      # needed.
+      (episodes[index] = new_episode) unless episode == new_episode
     end
   end
 end
