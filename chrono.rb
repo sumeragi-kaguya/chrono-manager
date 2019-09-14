@@ -369,6 +369,8 @@ def complain(type, data)
     %(Кривое время конца: "#{data}")
   when :start
     %(Кривое время начала: "#{data}")
+  when :tz
+    %(Не удалось угадать часовой пояс по локации: "#{data}")
   end
 end
 
@@ -433,10 +435,14 @@ def parse_episode_page(page)
       params[:end_] += 1 if params[:end_] < params[:start]
     end
 
-    params[:tz] = parse_tz(match['location']) || 0
-
-    params[:start] = tz_shift(params[:start], params[:tz])
-    params[:end_] = tz_shift(params[:end_], params[:tz])
+    tz = parse_tz(match['location'])
+    if tz
+      params[:tz] = tz
+      params[:start] = tz_shift(params[:start], tz)
+      params[:end_] = tz_shift(params[:end_], tz)
+    else
+      complaints << complain(:tz, match['location'])
+    end
 
 
     break
