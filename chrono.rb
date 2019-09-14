@@ -423,6 +423,7 @@ def parse_episode_page(page)
     if date
       params[:start] = DateTime.new(*(date + (start_time || [])))
       params[:end_] = DateTime.new(*(date + (end_time || [])))
+      params[:end_] += 1 if params[:end_] < params[:start]
     end
 
     params[:chara], unknown_characters = parse_characters match['chara']
@@ -431,7 +432,6 @@ def parse_episode_page(page)
     params[:start] = tz_shift(params[:start], params[:tz])
     params[:end_] = tz_shift(params[:end_], params[:tz])
 
-    params[:end_] += 1 if params[:end_] && params[:end_] < params[:start]
 
     break
   end
