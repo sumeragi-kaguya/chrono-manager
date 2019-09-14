@@ -359,14 +359,14 @@ def parse_tz(location_string)
   tz
 end
 
-def complain(type, params, match)
+def complain(type, data)
   case type
-  when :start
-    %(Кривое время начала: "#{match['start_time']}")
-  when :end_
-    %(Кривое время конца: "#{match['end_time']}")
   when :date
-    %(Кривая дата: "#{match['date']}")
+    %(Кривая дата: "#{data}")
+  when :end_
+    %(Кривое время конца: "#{data}")
+  when :start
+    %(Кривое время начала: "#{data}")
   end
 end
 
@@ -411,15 +411,15 @@ def parse_episode_page(page)
 
     if match.names.include?('date')
       date = parse_date(match['date'])
-      complaints << complain(:date, params, match) unless date
+      complaints << complain(:date, match['date']) unless date
     end
 
     if match.names.include?('start_time')
       start_time = parse_time(match['start_time'])
-      complaints << complain(:start, params, match) unless start_time
+      complaints << complain(:start, match['start_time']) unless start_time
 
       end_time = parse_time(match['end_time'])
-      complaints << complain(:end_, params, match) unless end_time
+      complaints << complain(:end_, match['end_time']) unless end_time
     end
 
     if date
