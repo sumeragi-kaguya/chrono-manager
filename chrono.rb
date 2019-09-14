@@ -285,7 +285,59 @@ def read_js_episodes
 end
 
 def parse_date(date_string)
+  number_date = /^
+    (?:
+      (?<start_day>
+        \d?\d
+      )
+      (?:\.
+        (?<start_month>
+          \d?\d
+        )
+        (?:\.
+          (?<start_year>
+            (?:\d\d)?\d\d
+          )
+        )?
+      )?
+    -)?
+    (?<end_day>
+      \d?\d
+    )\.
+    (?<end_month>
+      \d?\d
+    )\.
+    (?<end_year>
+      (?:\d\d)?\d\d
+    )
+  $/x
+
   date_string = date_string.strip
+
+  if (match = date_string.match(number_date))
+    end_day = match['end_day'].to_i
+    end_month = match['end_month'].to_i
+    end_year = match['end_year'].to_i
+
+    if end_year <= 20
+      end_year += 2000
+    elsif end_year <= 99
+      end_year += 1900
+    end
+
+    start_day = match['start_day'] ? match['start_day'].to_i : end_day
+    start_month = match['start_month'] ? match['start_month'].to_i : end_month
+    start_year = match['start_year'] ? match['start_year'].to_i : end_year
+
+    if start_year <= 20
+      start_year += 2000
+    elsif start_year <= 99
+      start_year += 1900
+    end
+
+    return [[start_year, start_month, start_day],
+            [end_year, end_month, end_day]]
+  end
 
   case date_string
   when /^\d?\d\.\d?\d\.\d\d$/
@@ -296,7 +348,8 @@ def parse_date(date_string)
     date_string.split('.').map(&:to_i).reverse
   when /^\d?\d [^ ]+ \d{4}$/
     date_string.gsub!(Regexp.union(MONTH_REPLACE.keys), MONTH_REPLACE)
-    date_string.split(' ').map(&:to_i).reverse
+    date = date_string.split(' ').map(&:to_i).reverse
+    return [date, date]
   end
 end
 
@@ -418,8 +471,8 @@ def parse_episode_page(page)
       complaints << complain(:chara, unknown_characters)
     end
 
-    date = parse_date(match['date'])
-    complaints << complain(:date, match['date']) unless date
+    start_date, end_date = parse_date(match['date'])
+    complaints << complain(:date, match['date']) unless start_date
 
     if match.names.include?('start_time')
       start_time = parse_time(match['start_time'])
@@ -429,9 +482,9 @@ def parse_episode_page(page)
       complaints << complain(:end_, match['end_time']) unless end_time
     end
 
-    if date
-      params[:start] = DateTime.new(*(date + (start_time || [])))
-      params[:end_] = DateTime.new(*(date + (end_time || [])))
+    if start_date
+      params[:start] = DateTime.new(*(start_date + (start_time || [])))
+      params[:end_] = DateTime.new(*(end_date + (end_time || [])))
       params[:end_] += 1 if params[:end_] < params[:start]
     end
 
