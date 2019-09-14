@@ -386,6 +386,7 @@ def parse_episode_page(page)
 
   in_header = false
   params = {}
+  complaints = []
 
   page.each_line do |line|
     if params[:done].nil? && params[:name].nil?
@@ -407,8 +408,6 @@ def parse_episode_page(page)
     end
 
     next unless match
-
-    complaints = []
 
     if match.names.include?('date')
       date = parse_date(match['date'])
@@ -439,7 +438,7 @@ def parse_episode_page(page)
     break
   end
 
-  params
+  [params, complaints]
 end
 
 def update_active_episodes(episodes)
@@ -447,10 +446,21 @@ def update_active_episodes(episodes)
     episodes.each do |episode|
       next if episode.done
 
-      response = http.get("http://codegeass.ru/viewtopic.php?id=#{episode.id}")
+      old_e = episode.dup
+
+      link = "http://codegeass.ru/viewtopic.php?id=#{episode.id}"
+      response = http.get(link)
       body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
-      episode_data = parse_episode_page(body)
-      episode.update(episode_data)
+      data, complaints = parse_episode_page(body)
+      episode.update(data)
+
+      if episode != old_e
+        puts <<~BAD_HEADER
+          Плохое оформление шапки эпизода "#{data[:name]}" ====> #{link}
+          #{complaints.join("\n")}
+
+        BAD_HEADER
+      end
     end
   end
 end
@@ -504,16 +514,21 @@ def add_new_episodes(episodes)
 
   Net::HTTP.start('codegeass.ru') do |http|
     new_episode_ids.each do |episode_id|
-      response = http.get("http://codegeass.ru/viewtopic.php?id=#{episode_id}")
+      link = "http://codegeass.ru/viewtopic.php?id=#{episode_id}"
+      response = http.get(link)
       body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
 
-      data = parse_episode_page(body)
+      data, complaints = parse_episode_page(body)
       data[:id] = episode_id
 
       begin
         episodes << ChronoEntry.new(data)
       rescue ArgumentError, NoMethodError
-        p data
+        puts <<~BAD_HEADER
+          Плохое оформление шапки эпизода "#{data[:name]}" ====> #{link}
+          #{complaints.join("\n")}
+
+        BAD_HEADER
       end
     end
   end
