@@ -361,6 +361,8 @@ end
 
 def complain(type, data)
   case type
+  when :chara
+    %(Неизвестные персонажи: #{data.map { |char| "\"#{char}\"" }.join(', ')})
   when :date
     %(Кривая дата: "#{data}")
   when :end_
@@ -409,6 +411,11 @@ def parse_episode_page(page)
 
     next unless match
 
+    params[:chara], unknown_characters = parse_characters match['chara']
+    unless unknown_characters.empty?
+      complaints << complain(:chara, unknown_characters)
+    end
+
     date = parse_date(match['date'])
     complaints << complain(:date, match['date']) unless date
 
@@ -426,7 +433,6 @@ def parse_episode_page(page)
       params[:end_] += 1 if params[:end_] < params[:start]
     end
 
-    params[:chara], unknown_characters = parse_characters match['chara']
     params[:tz] = parse_tz(match['location']) || 0
 
     params[:start] = tz_shift(params[:start], params[:tz])
