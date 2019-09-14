@@ -526,7 +526,7 @@ end
 
 def add_new_episodes(episodes)
   known_episode_ids = episodes.each.map(&:id)
-  new_episode_ids = get_all_episode_ids - known_episode_ids
+  new_episode_ids = get_all_episode_ids - known_episode_ids - EXCLUDED_TOPICS
 
   Net::HTTP.start('codegeass.ru') do |http|
     new_episode_ids.each do |episode_id|
