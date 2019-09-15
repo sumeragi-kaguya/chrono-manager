@@ -506,6 +506,7 @@ def parse_episode_page(page)
       end
     else
       line.gsub!(%r{</?strong>}, '')
+      line.gsub!(/&nbsp;/, ' ')
       match = line.match(normal_header_rx) || line.match(flashback_header_rx)
     end
 
