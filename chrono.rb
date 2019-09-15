@@ -181,7 +181,7 @@ class ChronoEntry
                  name:,
                  id:,
                  start:,
-                 end_: nil,
+                 end_:,
                  chara:,
                  tz:,
                  done:)
@@ -520,27 +520,34 @@ def parse_episode_page(page)
     start_date, end_date = parse_date(match['date'])
     complaints << complain(:date, match['date']) unless start_date
 
+    tz = parse_tz(match['location'])
+    if tz
+      params[:tz] = tz
+    else
+      complaints << complain(:tz, match['location'])
+    end
+
     if match.names.include?('start_time')
       start_time = parse_time(match['start_time'])
       complaints << complain(:start, match['start_time']) unless start_time
 
+      if start_time && start_date
+        params[:start] = DateTime.new(*(start_date + start_time))
+        params[:start] = tz_shift(params[:start], tz) if tz
+      end
+
       end_time = parse_time(match['end_time'])
       complaints << complain(:end_, match['end_time']) unless end_time
-    end
 
-    if start_date
-      params[:start] = DateTime.new(*(start_date + (start_time || [])))
-      params[:end_] = DateTime.new(*(end_date + (end_time || [])))
-      params[:end_] += 1 if params[:end_] < params[:start]
-    end
-
-    tz = parse_tz(match['location'])
-    if tz
-      params[:tz] = tz
-      params[:start] = tz_shift(params[:start], tz)
-      params[:end_] = tz_shift(params[:end_], tz)
-    else
-      complaints << complain(:tz, match['location'])
+      if end_time && end_date
+        params[:end_] = DateTime.new(*(end_date + end_time))
+        params[:end_] = tz_shift(params[:end_], tz) if tz
+        params[:end_] += 1 if params[:end_] < params[:start]
+      end
+    elsif start_date && end_date
+      params[:start] = DateTime.new(*start_date)
+      params[:end_] = DateTime.new(*end_date)
+      params[:tz] = 0
     end
 
 
