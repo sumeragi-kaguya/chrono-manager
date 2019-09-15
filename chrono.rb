@@ -357,6 +357,8 @@ def parse_date(date_string)
     )?
   $/x
 
+  date_string = date_string.strip.chomp('.')
+
   if (match = date_string.match(number_date))
     end_day = match['end_day'].to_i
     end_month = match['end_month'].to_i
