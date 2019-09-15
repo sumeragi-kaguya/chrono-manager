@@ -28,20 +28,21 @@ JS_ARRAY_URI = 'http://forumfiles.ru/files/0010/8b/e4/23203.js'
 JS_ARRAY_NAME = File.basename(URI.parse(JS_ARRAY_URI).path)
 OUTPUT_FILE = JS_ARRAY_NAME.end_with?('.js') ? JS_ARRAY_NAME : 'blah.js'
 
-MONTH_REPLACE = {
-  'января' => '1',
-  'февраля' => '2',
-  'марта' => '3',
-  'апреля' => '4',
-  'мая' => '5',
-  'июня' => '6',
-  'июля' => '7',
-  'августа' => '8',
-  'сентября' => '9',
-  'октября' => '10',
-  'ноября' => '11',
-  'декабря' => '12'
+MONTHS = {
+  1 => 'января',
+  2 => 'февраля',
+  3 => 'марта',
+  4 => 'апреля',
+  5 => 'мая',
+  6 => 'июня',
+  7 => 'июля',
+  8 => 'августа',
+  9 => 'сентября',
+  10 => 'октября',
+  11 => 'ноября',
+  12 => 'декабря'
 }.freeze
+MONTHS_BACK = MONTHS.invert.freeze
 SEARCH_FORUMS = {
   'turn1': 41,
   'turn2': 50,
@@ -312,7 +313,49 @@ def parse_date(date_string)
     )
   $/x
 
-  date_string = date_string.strip
+  word_date = /^
+    (?:
+      (?<start_day>
+        \d?\d
+      )
+      (?:\s
+        (?<start_month>
+          [\D&&\S]+
+        )
+        (?:\s
+          (?<start_year>
+            (?:\d\d)?\d\d
+          )
+          (?:
+            \sг(?:ода)?
+          )?
+          (?<start_pre_atb>
+            \sдо\sa\.?t\.?b\.?
+          )?
+        )?
+      )?
+      \s?
+      (?:-|—)
+      (?:
+        \s|(?:<br>)
+      )?
+    )?
+    (?<end_day>
+      \d?\d
+    )\s
+    (?<end_month>
+      [\D&&\S]+
+    )\s
+    (?<end_year>
+      \d+
+    )
+    (?:
+      \sг(?:ода)?
+    )?
+    (?<end_pre_atb>
+      \sдо\sa\.?t\.?b\.?
+    )?
+  $/x
 
   if (match = date_string.match(number_date))
     end_day = match['end_day'].to_i
@@ -337,19 +380,21 @@ def parse_date(date_string)
 
     return [[start_year, start_month, start_day],
             [end_year, end_month, end_day]]
-  end
+  elsif (match = date_string.match(word_date))
+    end_day = match['end_day'].to_i
+    end_month = MONTHS_BACK[match['end_month']]
+    end_year = match['end_year'].to_i
 
-  case date_string
-  when /^\d?\d\.\d?\d\.\d\d$/
-    date = date_string.split('.').map(&:to_i).reverse
-    date[0] += 2000
-    date
-  when /^\d?\d\.\d?\d\.\d{4}$/
-    date_string.split('.').map(&:to_i).reverse
-  when /^\d?\d [^ ]+ \d{4}$/
-    date_string.gsub!(Regexp.union(MONTH_REPLACE.keys), MONTH_REPLACE)
-    date = date_string.split(' ').map(&:to_i).reverse
-    return [date, date]
+    end_year = -end_year + 1 if match['end_pre_atb']
+
+    start_day = (match['start_day'] || end_day).to_i
+    start_month = MONTHS_BACK[match['start_month']] || end_month
+    start_year = (match['start_year'] || end_year).to_i
+
+    start_year = -start_year + 1 if match['start_pre_atb']
+
+    return [[start_year, start_month, start_day],
+            [end_year, end_month, end_day]]
   end
 end
 
