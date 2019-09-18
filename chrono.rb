@@ -470,6 +470,48 @@ def complain(type, data)
   end
 end
 
+def update_report(old_episode, new_episode)
+  return nil if old_episode == new_episode
+
+  lines = [%(Эпизод "#{old_episode.name}" ) \
+           "( http://codegeass.ru/viewtopic.php?id=#{old_episode.id} ) " \
+           'обновлён:']
+
+  if old_episode.name != new_episode.name
+    lines << "Название: #{old_episode.name} → #{new_episode.name}"
+  end
+
+  if old_episode.start != new_episode.start
+    lines << "Начало: #{old_episode.start} → #{new_episode.start}"
+  end
+
+  if old_episode.end != new_episode.end
+    lines << "Конец: #{old_episode.end} → #{new_episode.end}"
+  end
+
+  if old_episode.chara != new_episode.chara
+    unless (removed = old_episode.chara - new_episode.chara).empty?
+      removed.map! { |char| CHARS[char] }
+      lines << "Убраны персонажи: #{removed.join(', ')}"
+    end
+
+    unless (added = new_episode.chara - old_episode.chara).empty?
+      added.map! { |char| CHARS[char] }
+      lines << "Добавлены персонажи: #{added.join(', ')}"
+    end
+  end
+
+  if old_episode.tz != new_episode.tz
+    lines << "Часовой пояс: PND+#{old_episode.tz} → PND+#{new_episode.tz}"
+  end
+
+  if !old_episode.done && new_episode.done
+    lines << 'Статус: Активен → Завершён'
+  end
+
+  lines.join("\n")
+end
+
 def parse_episode_page(page)
   normal_header_rx = %r{
     1\.\ ?Дата:\ *(?<date>.+?)\.?\ *<br\ />.*
@@ -557,6 +599,7 @@ end
 
 def update_active_episodes(episodes)
   errors = []
+  reports = []
 
   Net::HTTP.start('codegeass.ru') do |http|
     episodes.each_with_index do |episode, index|
@@ -581,11 +624,14 @@ def update_active_episodes(episodes)
       # This line is kinda useless right now (could just do the assignment in
       # the block above), but later on a message about the update will be
       # needed.
-      (episodes[index] = new_episode) unless episode == new_episode
+      if (report = update_report(episode, new_episode))
+        reports << report
+        episodes[index] = new_episode
+      end
     end
   end
 
-  errors
+  [errors, reports]
 end
 
 def get_all_episode_ids
@@ -661,7 +707,7 @@ end
 
 def main
   episodes = read_js_episodes
-  errors = update_active_episodes(episodes)
+  errors, reports = update_active_episodes(episodes)
   errors << add_new_episodes(episodes)
 
   episodes.sort_by! do |item|
@@ -675,6 +721,8 @@ def main
   end
 
   puts errors.join("\n")
+  puts "\n\n\n"
+  puts reports.join("\n\n")
 end
 
 main if $PROGRAM_NAME == __FILE__
