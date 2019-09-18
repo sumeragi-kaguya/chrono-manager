@@ -556,6 +556,8 @@ def parse_episode_page(page)
 end
 
 def update_active_episodes(episodes)
+  errors = []
+
   Net::HTTP.start('codegeass.ru') do |http|
     episodes.each_with_index do |episode, index|
       next if episode.done
@@ -569,10 +571,9 @@ def update_active_episodes(episodes)
       begin
         new_episode = ChronoEntry.new(data)
       rescue ArgumentError, NoMethodError
-        puts <<~BAD_HEADER
+        errors << <<~BAD_HEADER
           Плохое оформление шапки эпизода "#{data[:name]}" ====> #{link}
           #{complaints.join("\n")}
-
         BAD_HEADER
         next
       end
@@ -583,6 +584,8 @@ def update_active_episodes(episodes)
       (episodes[index] = new_episode) unless episode == new_episode
     end
   end
+
+  errors
 end
 
 def get_all_episode_ids
@@ -629,6 +632,7 @@ def get_all_episode_ids
 end
 
 def add_new_episodes(episodes)
+  errors = []
   known_episode_ids = episodes.each.map(&:id)
   new_episode_ids = get_all_episode_ids - known_episode_ids - EXCLUDED_TOPICS
 
@@ -644,20 +648,21 @@ def add_new_episodes(episodes)
       begin
         episodes << ChronoEntry.new(data)
       rescue ArgumentError, NoMethodError
-        puts <<~BAD_HEADER
+        errors << <<~BAD_HEADER
           Плохое оформление шапки эпизода "#{data[:name]}" ====> #{link}
           #{complaints.join("\n")}
-
         BAD_HEADER
       end
     end
   end
+
+  errors
 end
 
 def main
   episodes = read_js_episodes
-  update_active_episodes(episodes)
-  add_new_episodes(episodes)
+  errors = update_active_episodes(episodes)
+  errors << add_new_episodes(episodes)
 
   episodes.sort_by! do |item|
     arc_sort = item.arc.zero? ? 10**ARC_DIGITS - 1 : item.arc
@@ -668,6 +673,8 @@ def main
   File.open(OUTPUT_FILE, 'w') do |file|
     file.puts episodes_to_json_by_arc(episodes).encode(Encoding::Windows_1251)
   end
+
+  puts errors.join("\n")
 end
 
 main if $PROGRAM_NAME == __FILE__
