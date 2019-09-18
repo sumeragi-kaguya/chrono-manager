@@ -412,27 +412,25 @@ def parse_time(time_string)
 end
 
 def parse_characters(chars_string)
-  chars_string = chars_string.gsub(/\(.*?\)/, '').gsub(/&nbsp;/, ' ')
-  chars = chars_string.split(/ *, */)
-
   char_list = []
   unknowns = []
 
-  chars.each do |char_string|
-    char_string.strip!
+  if !(matches = chars_string.strip.scan(%r{
+    <a\ href=".*?http://codegeass.ru/pages/chronology\?id=(?<id>\d+)".*?>.*?</a>
+  }x)).empty?
+    matches.each { |char_id,| char_list << char_id.to_i }
+  else
+    chars_string = chars_string.gsub(/\(.*?\)/, '').gsub(/&nbsp;/, ' ')
+    chars = chars_string.split(/ *, */)
 
-    if !(matches = char_string.strip.scan(%r{
-    <a\ href=".*?\?id=(?<id>\d+)".*?>(?<name>.*?)</a>
-    }x)).empty?
-      # Resolve via chrono id!
-      matches.each do |char_id, char_name|
-        char = CHARS_BACK[char_name]
-        char_list << char if char
+    chars.each do |char_string|
+      char_string.strip!
+
+      if CHARS_BACK[char_string]
+        char_list << CHARS_BACK[char_string]
+      else
+        unknowns << char_string
       end
-    elsif CHARS_BACK[char_string]
-      char_list << CHARS_BACK[char_string]
-    else
-      unknowns << char_string
     end
   end
 
