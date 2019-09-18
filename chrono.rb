@@ -679,6 +679,7 @@ end
 
 def add_new_episodes(episodes)
   errors = []
+  reports = []
   known_episode_ids = episodes.each.map(&:id)
   new_episode_ids = get_all_episode_ids - known_episode_ids - EXCLUDED_TOPICS
 
@@ -692,23 +693,39 @@ def add_new_episodes(episodes)
       data[:id] = episode_id
 
       begin
-        episodes << ChronoEntry.new(data)
+        episode = ChronoEntry.new(data)
       rescue ArgumentError, NoMethodError
         errors << <<~BAD_HEADER
           Плохое оформление шапки эпизода "#{data[:name]}" ====> #{link}
           #{complaints.join("\n")}
         BAD_HEADER
+        next
       end
+
+      report = +<<~REPORT.chomp
+        Добавлен эпизод:
+        Название: #{episode.name}
+        Ссылка: http://codegeass.ru/viewtopic.php?id=#{episode.id}
+        Id темы: #{episode.id}
+        Начало: #{episode.start}
+        Конец: #{episode.end}
+        Персонажи: #{episode.chara.map { |char| CHARS[char] }.join(', ')}
+        Часовой пояс: #{episode.tz}
+      REPORT
+      report << "\n" + complaints.join("\n") unless complaints.empty?
+      reports << report
     end
   end
 
-  errors
+  [errors, reports]
 end
 
 def main
   episodes = read_js_episodes
   errors, reports = update_active_episodes(episodes)
-  errors << add_new_episodes(episodes)
+  errors_, reports_ = add_new_episodes(episodes)
+  errors << errors_
+  reports << reports_
 
   episodes.sort_by! do |item|
     arc_sort = item.arc.zero? ? 10**ARC_DIGITS - 1 : item.arc
