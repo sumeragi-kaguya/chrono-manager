@@ -714,6 +714,7 @@ def add_new_episodes(episodes)
       REPORT
       report << "\n" + complaints.join("\n") unless complaints.empty?
       reports << report
+      episodes << episode
     end
   end
 
