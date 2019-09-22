@@ -55,8 +55,7 @@ SEARCH_FORUMS = {
   'personal': 63,
   'past': 70,
   'flashback': 68,
-  'flashback_open': 44,
-  'purgatory': 89
+  'flashback_open': 44
 }.freeze
 FORUM_BASE_LINK = 'http://codegeass.ru/viewforum.php'
 
