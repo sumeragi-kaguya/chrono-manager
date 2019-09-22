@@ -438,7 +438,9 @@ def parse_characters(chars_string)
 end
 
 def parse_tz(location_string)
-  tz = location_string[/PND\+(\d+)/, 1] || TIMEZONES[location_string]
+  tz = location_string[/PND\+(\d+)/, 1]
+  tz &&= tz.to_i
+  tz ||= TIMEZONES[location_string]
 
   unless tz
     tz = []
