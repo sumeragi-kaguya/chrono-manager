@@ -52,7 +52,6 @@ SEARCH_FORUMS = {
   'turn6': 84,
   'turn7': 95,
   'turn7_open': 93,
-  'personal': 63,
   'past': 70,
   'flashback': 68,
   'flashback_open': 44
