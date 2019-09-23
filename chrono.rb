@@ -532,11 +532,16 @@ def parse_episode_page(page)
 
   page.each_line do |line|
     if params[:done].nil? && params[:name].nil?
-      if (match = line.match(
-        /^FORUM\.set\('topic', \{ "subject": "(.*?)", "closed": "(\d)",/
-      ))
+      if (match = line.match(/
+        ^FORUM\.set\('topic',\s\{\s
+        "subject":\s"(.*?)",\s
+        "closed":\s"(\d)",\s
+        .*
+        "forum_id":\s"(\d+)"
+      /x))
         params[:name] = match[1][/(?:([?\d.-]+)\. )?(.*)/, 2]
         params[:done] = match[2].to_i == 1
+        params[:forum] = match[3].to_i
         next
       end
     elsif !in_header
@@ -602,14 +607,22 @@ def update_active_episodes(episodes)
   reports = []
 
   Net::HTTP.start('codegeass.ru') do |http|
-    episodes.each_with_index do |episode, index|
-      next if episode.done
+    episodes.dup.each_with_index do |episode, index|
+      next if episode.done || EXCLUDED_TOPICS.include?(episode.id)
 
       link = "http://codegeass.ru/viewtopic.php?id=#{episode.id}"
       response = http.get(link)
       body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
       data, complaints = parse_episode_page(body)
       data[:id] = episode.id
+
+      unless SEARCH_FORUMS.values.include? data.delete(:forum)
+        reports << %(Эпизод "#{episode.name}" ) \
+           "( http://codegeass.ru/viewtopic.php?id=#{episode.id} ) " \
+           'удалён'
+        episodes[index] = nil
+        next
+      end
 
       begin
         new_episode = ChronoEntry.new(data)
@@ -630,6 +643,8 @@ def update_active_episodes(episodes)
       end
     end
   end
+
+  episodes.delete(nil)
 
   [errors, reports]
 end
