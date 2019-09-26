@@ -539,7 +539,8 @@ def parse_episode_page(page)
         .*
         "forum_id":\s"(\d+)"
       /x))
-        params[:name] = match[1][/(?:([?\d.-]+)\. )?(.*)/, 2]
+        js_name = match[1][/(?:([?\d.-]+)\. )?(.*)/, 2]
+        params[:name] = JSON.parse(%("#{js_name}"))
         params[:done] = match[2].to_i == 1
         params[:forum] = match[3].to_i
         next
