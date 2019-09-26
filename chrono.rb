@@ -706,6 +706,7 @@ def add_new_episodes(episodes)
 
       data, complaints = parse_episode_page(body)
       data[:id] = episode_id
+      data.delete(:forum)
 
       begin
         episode = ChronoEntry.new(data)
