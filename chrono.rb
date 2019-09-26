@@ -596,7 +596,6 @@ def parse_episode_page(page)
       params[:tz] = 0
     end
 
-
     break
   end
 
