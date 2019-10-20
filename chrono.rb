@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
+require 'cgi/util'
 require 'json'
 require 'net/http'
 require 'time'
@@ -458,7 +459,8 @@ end
 def complain(type, data)
   case type
   when :chara
-    %(Неизвестные персонажи: #{data.map { |char| "\"#{char}\"" }.join(', ')})
+    data = data.map { |char| %("#{CGI.unescapeHTML(char)}") }.join(', ')
+    "Неизвестные персонажи: #{data}"
   when :date
     %(Кривая дата: "#{data}")
   when :end_
