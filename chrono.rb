@@ -300,7 +300,8 @@ def parse_date(date_string)
           )
         )?
       )?
-    -)?
+      (?:-|(?:\ -\ ))
+    )?
     (?<end_day>
       \d?\d
     )\.
