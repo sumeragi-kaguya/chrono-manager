@@ -408,11 +408,10 @@ end
 def parse_time(time_string)
   time_string = time_string.strip.gsub('.', ':')
 
-  case time_string
-  when /^\d?\d:\d\d:\d\d/
-    time_string.split(':').map(&:to_i)
-  when /^\d?\d:\d\d/
-    time_string.split(':').map(&:to_i)
+  if (match = time_string.match(/^(\d?\d:\d\d:\d\d)/))
+    match[1].split(':').map(&:to_i)
+  elsif (match = time_string.match(/^(\d?\d:\d\d)/))
+    match[1].split(':').map(&:to_i)
   end
 end
 
