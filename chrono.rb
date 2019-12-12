@@ -183,7 +183,8 @@ class ChronoEntry
                  end_:,
                  chara:,
                  tz:,
-                 done:)
+                 done:,
+                 mode: 0)
     @timeless = timeless
     @name = name
     @id = id
@@ -192,6 +193,7 @@ class ChronoEntry
     @chara = chara
     @tz = tz
     @done = done
+    @mode = mode
 
     @arc = pick_arc(@start)
   end
@@ -203,7 +205,8 @@ class ChronoEntry
              end_: nil,
              chara: nil,
              tz: nil,
-             done: nil)
+             done: nil,
+             mode: nil)
     @timeless = timeless unless timeless.nil?
     @name = name unless name.nil?
     @id = id unless id.nil?
@@ -212,6 +215,7 @@ class ChronoEntry
     @chara = chara unless chara.nil?
     @tz = tz unless tz.nil?
     @done = done unless done.nil?
+    @mode = mode unless mode.nil?
   end
 
   def ==(other)
@@ -253,7 +257,7 @@ class ChronoEntry
        "tz": #{@tz},
        "turn": #{@arc},
        "name": #{JSON.dump(@name)},
-       "mode": 0,
+       "mode": #{@mode},
        "chara": #{@chara},
        "done": #{@done}
       }
@@ -278,7 +282,8 @@ def read_js_episodes
               end,
         chara: params['chara'],
         tz: params['tz'],
-        done: params['done']
+        done: params['done'],
+        mode: params['mode']
       )
     end
   end
