@@ -632,7 +632,7 @@ def update_active_episodes(episodes)
       end
 
       begin
-        new_episode = ChronoEntry.new(data)
+        new_episode = ChronoEntry.new(**data)
       rescue ArgumentError, NoMethodError
         errors << <<~BAD_HEADER
           Плохое оформление шапки эпизода "#{data[:name]}" ====> #{link}
@@ -716,7 +716,7 @@ def add_new_episodes(episodes)
       data.delete(:forum)
 
       begin
-        episode = ChronoEntry.new(data)
+        episode = ChronoEntry.new(**data)
       rescue ArgumentError, NoMethodError
         errors << <<~BAD_HEADER
           Плохое оформление шапки эпизода "#{data[:name]}" ====> #{link}
