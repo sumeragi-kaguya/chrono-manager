@@ -553,7 +553,7 @@ def parse_episode_page(page)
         "forum_id":\s"(\d+)"
       /x))
         js_name = match[1][/(?:([?\d.-]+)\. )?(.*)/, 2]
-        params[:name] = JSON.parse(%("#{js_name}"))
+        params[:name] = CGI.unescapeHTML(JSON.parse(%("#{js_name}")))
         params[:done] = match[2].to_i == 1
         params[:forum] = match[3].to_i
         next
@@ -873,10 +873,16 @@ def main
   repo.add(JS_ARRAY)
 
   return unless repo.status.any? { |file| !file.type.nil? }
-
-  repo.commit("Chrono update: #{reports.size} episodes\n\n" \
+  
+  File.open(File.join(REPO_NAME, "commit.msg"), 'w') do |file|
+    file.puts("Chrono update: #{reports.size} episodes\n\n" \
               "#{errors_str}\n====\n\n" \
               "#{reports_str}")
+  end
+
+  #repo.commit("Chrono update: #{reports.size} episodes\n\n" \
+  #            "#{errors_str}\n====\n\n" \
+  #            "#{reports_str}")
   # repo.push
 end
 
