@@ -22,12 +22,19 @@ require 'net/http'
 require 'time'
 require 'uri'
 
+require 'git'
+
 require_relative 'data'
 
+REQUESTS_PER_SECOND = 10
+
 ARC_DIGITS = 2
-JS_ARRAY_URI = 'http://forumfiles.ru/files/0010/8b/e4/23203.js'
-JS_ARRAY_NAME = File.basename(URI.parse(JS_ARRAY_URI).path)
-OUTPUT_FILE = JS_ARRAY_NAME.end_with?('.js') ? JS_ARRAY_NAME : 'blah.js'
+# JS_ARRAY_URI = 'http://forumfiles.ru/files/0010/8b/e4/23203.js'
+# JS_ARRAY_NAME = File.basename(URI.parse(JS_ARRAY_URI).path)
+# OUTPUT_FILE = JS_ARRAY_NAME.end_with?('.js') ? JS_ARRAY_NAME : 'blah.js'
+REMOTE = 'kaguyushka:sumeragi-kaguya/sumeragi-kaguya.github.io.git'
+REPO_NAME = REMOTE[/([^:\/]*?)(\.git)?$/, 1]
+JS_ARRAY = 'chrono_data.js'
 
 MONTHS = {
   1 => 'января',
@@ -45,19 +52,19 @@ MONTHS = {
 }.freeze
 MONTHS_BACK = MONTHS.invert.freeze
 SEARCH_FORUMS = {
-  'turn1': 41,
-  'turn2': 50,
-  'turn3': 58,
-  'turn4': 43,
-  'turn5': 71,
-  'turn6': 84,
+  'turn1': 103,
+  'turn2': 104,
+  'turn3': 105,
+  'turn4': 106,
+  'turn5': 107,
+  'turn6': 108,
   'turn7': 95,
   'turn7_open': 93,
   'past': 70,
   'flashback': 68,
-  'flashback_open': 44
+  'flashback_open': 102
 }.freeze
-FORUM_BASE_LINK = 'http://codegeass.ru/viewforum.php'
+FORUM_BASE_LINK = 'https://codegeass.ru/viewforum.php'
 
 def tz_shift(datetime, tz)
   tz && datetime ? datetime - Rational(tz, 24) : datetime
@@ -234,14 +241,14 @@ class ChronoEntry
       HTML
     else
       char_list = @chara.map do |char_chrono_id|
-        %(<a href="http://codegeass.ru/pages/id#{'%02d' % char_chrono_id}">) +
+        %(<a href="https://codegeass.ru/pages/id#{'%02d' % char_chrono_id}">) +
           %(#{CGI.escapeHTML CHARS[char_chrono_id]}</a>)
       end.join(', ')
 
       <<~HTML
         <div class="chep">
         <div class="chtime1">#{@start.day} #{MONTHS[@start.month]} #{@start.year} года</div>
-        <div class="chepname"><a href="http://codegeass.ru/viewtopic.php?id=#{@id}">#{CGI.escapeHTML(@name)}</a></div>
+        <div class="chepname"><a href="https://codegeass.ru/viewtopic.php?id=#{@id}">#{CGI.escapeHTML(@name)}</a></div>
         <div class="chcast">#{char_list}</div>
         <div class="chstat">Завершен</div>
         </div>
@@ -266,26 +273,25 @@ class ChronoEntry
 end
 
 def read_js_episodes
-  Net::HTTP.start('forumfiles.ru') do |http|
-    response = http.get(JS_ARRAY_URI)
-    json = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
-    json = json.delete_prefix('var datach = ')
-    json.gsub!(/new Date\(((?:-?\d+(?:, )?)+)\)/, '"\1"')
-    x = JSON.parse(json)
-    x.values.flatten.map do |params|
-      ChronoEntry.new(
-        name: params['name'],
-        id: params['id'],
-        start: DateTime.new(*datetime_from_json_values(params['start'])),
-        end_: if params['end']
-                DateTime.new(*datetime_from_json_values(params['end']))
-              end,
-        chara: params['chara'],
-        tz: params['tz'],
-        done: params['done'],
-        mode: params['mode']
-      )
-    end
+  json = File.open(File.join(REPO_NAME, JS_ARRAY), &:read)
+  # json.encode!(Encoding::UTF_8, Encoding::Windows_1251)
+  json = json.delete_prefix('var datach = ')
+  json.gsub!(/new Date\(((?:-?\d+(?:, )?)+)\)/, '"\1"')
+
+  x = JSON.parse(json)
+  x.values.flatten.map do |params|
+    ChronoEntry.new(
+      name: params['name'],
+      id: params['id'],
+      start: DateTime.new(*datetime_from_json_values(params['start'])),
+      end_: if params['end']
+              DateTime.new(*datetime_from_json_values(params['end']))
+            end,
+      chara: params['chara'],
+      tz: params['tz'],
+      done: params['done'],
+      mode: params['mode']
+    )
   end
 end
 
@@ -389,7 +395,7 @@ def parse_date(date_string)
             [end_year, end_month, end_day]]
   elsif (match = date_string.match(word_date))
     end_day = match['end_day'].to_i
-    end_month = MONTHS_BACK[match['end_month']]
+    end_month = MONTHS_BACK[match['end_month'].downcase]
     end_year = match['end_year'].to_i
 
     end_year = -end_year + 1 if match['end_pre_atb']
@@ -420,7 +426,7 @@ def parse_characters(chars_string)
   unknowns = []
 
   if !(matches = chars_string.strip.scan(%r{
-    <a\ href=".*?http://codegeass.ru/pages/chronology\?id=(?<id>\d+)".*?>.*?</a>
+    <a\ href=".*?https?://codegeass.ru/pages/chronology\?id=(?<id>\d+)".*?>.*?</a>
   }x)).empty?
     matches.each { |char_id,| char_list << char_id.to_i }
   else
@@ -481,7 +487,7 @@ def update_report(old_episode, new_episode)
   return nil if old_episode == new_episode
 
   lines = [%(Эпизод "#{old_episode.name}" ) \
-           "( http://codegeass.ru/viewtopic.php?id=#{old_episode.id} ) " \
+           "( https://codegeass.ru/viewtopic.php?id=#{old_episode.id} ) " \
            'обновлён:']
 
   if old_episode.name != new_episode.name
@@ -524,12 +530,12 @@ def parse_episode_page(page)
     1\.\ ?Дата:\ *(?<date>.+?)\.?\ *<br\ />.*
     2\.\ ?Время\ старта:\ *(?<start_time>.+?)\.?\ *<br\ />.*
     3\.\ ?Время\ окончания:\ *(?<end_time>.+?)\.?\ *<br\ />.*
-    5\.\ ?Персонажи:\ *(?<chara>.+?)\.?\ *<br\ />.*
+    5\.\ ?Персонажи:\ *(?<chara>.*?)\.?\ *<br\ />.*
     6\.\ ?Место\ действия:\ *(?<location>.+?)\.?\ *<br\ />.*
   }x
   flashback_header_rx = %r{
     1\.\ ?Дата:\ *(?<date>.+?)\.?\ *<br\ />.*
-    2\.\ ?Персонажи:\ *(?<chara>.+?)\.?\ *<br\ />.*
+    2\.\ ?Персонажи:\ *(?<chara>.*?)\.?\ *<br\ />.*
     3\.\ ?Место\ действия:\ *(?<location>.+?)\.?\ *<br\ />.*
   }x
 
@@ -585,6 +591,8 @@ def parse_episode_page(page)
       complaints << complain(:start, match['start_time']) unless start_time
 
       if start_time && start_date
+        # pp params[:name]
+        # pp (start_date + start_time)
         params[:start] = DateTime.new(*(start_date + start_time))
         params[:start] = tz_shift(params[:start], tz) if tz
       end
@@ -613,19 +621,42 @@ def update_active_episodes(episodes)
   errors = []
   reports = []
 
-  Net::HTTP.start('codegeass.ru') do |http|
+  previous = Time.at(0)
+
+  Net::HTTP.start('codegeass.ru', use_ssl: true) do |http|
     episodes.dup.each_with_index do |episode, index|
       next if episode.done || EXCLUDED_TOPICS.include?(episode.id)
 
-      link = "http://codegeass.ru/viewtopic.php?id=#{episode.id}"
-      response = http.get(link)
+      link = "https://codegeass.ru/viewtopic.php?id=#{episode.id}"
+
+      response = nil
+      until response.is_a? Net::HTTPOK
+        delay = 1.0 / REQUESTS_PER_SECOND - (Time.now - previous)
+        if delay.positive?
+          pp "Sleeping for #{delay}"
+          sleep delay
+        end
+
+        request = Net::HTTP::Get.new(
+          link, { 'User-Agent' => 'PostmanRuntime/7.26.8' }
+        )
+        response = http.request request
+        previous = Time.now
+
+        next if response.is_a? Net::HTTPOK
+
+        p 'Error!'
+        pp response
+        pp response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
+      end
+
       body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
       data, complaints = parse_episode_page(body)
       data[:id] = episode.id
 
       unless SEARCH_FORUMS.values.include? data.delete(:forum)
         reports << %(Эпизод "#{episode.name}" ) \
-           "( http://codegeass.ru/viewtopic.php?id=#{episode.id} ) " \
+           "( https://codegeass.ru/viewtopic.php?id=#{episode.id} ) " \
            'удалён'
         episodes[index] = nil
         next
@@ -659,39 +690,67 @@ end
 def get_all_episode_ids
   episode_ids = []
 
-  Net::HTTP.start('codegeass.ru') do |http|
+  previous = Time.at(0)
+
+  Net::HTTP.start('codegeass.ru', use_ssl: true) do |http|
     SEARCH_FORUMS.each_value do |value|
-      page = 1
-      last_page = false
+      link = "#{FORUM_BASE_LINK}?id=#{value}&p=-1"
 
-      until last_page
-        response = http.get("#{FORUM_BASE_LINK}?id=#{value}&p=#{page}")
-
-        body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
-
-        body.each_line do |line|
-          if !last_page && (match = line.match(%r{
-            <h2>
-              <span\ class="item1">Тем<\/span>
-              \ <span\ class="item2">
-                [0-9]+\ страница\ ([0-9]+)\ из\ ([0-9]+)
-              </span>
-            </h2>
-          }x))
-            last_page = match[1] == match[2]
-          end
-
-          if (match = line.match(%r{
-            <div\ class="tclcon">
-              .*
-              <a\ href="http://codegeass.ru/viewtopic.php\?id=(\d+)">
-          }x))
-            episode_id = match[1].gsub('&amp;', '&').to_i
-            episode_ids << episode_id
-          end
+      response = nil
+      until response.is_a? Net::HTTPOK
+        delay = 1.0 / REQUESTS_PER_SECOND - (Time.now - previous)
+        if delay.positive?
+          pp "Sleeping for #{delay}"
+          sleep delay
         end
 
-        page += 1
+        request = Net::HTTP::Get.new(
+          link, { 'User-Agent' => 'PostmanRuntime/7.26.8' }
+        )
+        response = http.request request
+        previous = Time.now
+
+        next if response.is_a? Net::HTTPOK
+
+        p 'Error!'
+        pp response
+        pp response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
+      end
+
+      body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
+
+      body.each_line do |line|
+        # if line.include? 'из '
+        #   pp line
+        #   pp line.match(%r{
+        #     <h2>
+        #       <span\ class="item1">Тем<\/span>
+        #       \ <span\ class="item2">
+        #         [0-9]+\ страница\ ([0-9]+)\ из\ ([0-9]+)
+        #       </span>
+        #     </h2>
+        #   }x)
+        # end
+
+        # if !last_page && (match = line.match(%r{
+        #   <h2>
+        #     <span\ class="item1">Тем<\/span>
+        #     \ <span\ class="item2">
+        #       [0-9]+\ страница\ ([0-9]+)\ из\ ([0-9]+)
+        #     </span>
+        #   </h2>
+        # }x))
+        #   last_page = match[1] == match[2]
+        # end
+
+        if (match = line.match(%r{
+          <div\ class="tclcon">
+            .*
+            <a\ href="https?://codegeass.ru/viewtopic.php\?id=(\d+)">
+        }x))
+          episode_id = match[1].gsub('&amp;', '&').to_i
+          episode_ids << episode_id
+        end
       end
     end
   end
@@ -705,10 +764,33 @@ def add_new_episodes(episodes)
   known_episode_ids = episodes.each.map(&:id)
   new_episode_ids = get_all_episode_ids - known_episode_ids - EXCLUDED_TOPICS
 
-  Net::HTTP.start('codegeass.ru') do |http|
+  previous = Time.at(0)
+
+  Net::HTTP.start('codegeass.ru', use_ssl: true) do |http|
     new_episode_ids.each do |episode_id|
-      link = "http://codegeass.ru/viewtopic.php?id=#{episode_id}"
-      response = http.get(link)
+      link = "https://codegeass.ru/viewtopic.php?id=#{episode_id}"
+
+      response = nil
+      until response.is_a? Net::HTTPOK
+        delay = 1.0 / REQUESTS_PER_SECOND - (Time.now - previous)
+        if delay.positive?
+          pp "Sleeping for #{delay}"
+          sleep delay
+        end
+
+        request = Net::HTTP::Get.new(
+          link, { 'User-Agent' => 'PostmanRuntime/7.26.8' }
+        )
+        response = http.request request
+        previous = Time.now
+
+        next if response.is_a? Net::HTTPOK
+
+        p 'Error!'
+        pp response
+        pp response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
+      end
+
       body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
 
       data, complaints = parse_episode_page(body)
@@ -728,7 +810,7 @@ def add_new_episodes(episodes)
       report = +<<~REPORT.chomp
         Добавлен эпизод:
         Название: #{episode.name}
-        Ссылка: http://codegeass.ru/viewtopic.php?id=#{episode.id}
+        Ссылка: https://codegeass.ru/viewtopic.php?id=#{episode.id}
         Id темы: #{episode.id}
         Начало: #{episode.start}
         Конец: #{episode.end}
@@ -744,12 +826,28 @@ def add_new_episodes(episodes)
   [errors, reports]
 end
 
+def git_init
+  begin
+    repo = Git.open(REPO_NAME)
+    repo.pull
+  rescue ArgumentError
+    repo = Git.clone('kaguyushka:sumeragi-kaguya/sumeragi-kaguya.github.io.git',
+                     REPO_NAME)
+    repo.config('user.name', 'Sumeragi Kaguya')
+    repo.config('user.email', 'nyalice@technologist.com')
+    repo.config('user.signingkey', 'nyalice@technologist.com')
+  end
+
+  repo
+end
+
 def main
+  repo = git_init
   episodes = read_js_episodes
   errors, reports = update_active_episodes(episodes)
   errors_, reports_ = add_new_episodes(episodes)
-  errors << errors_
-  reports << reports_
+  errors += errors_
+  reports += reports_
 
   episodes.sort_by! do |item|
     arc_sort = item.arc.zero? ? 10**ARC_DIGITS - 1 : item.arc
@@ -757,13 +855,29 @@ def main
     "#{arc_sort} #{item.start} #{item.name}"
   end
 
-  File.open(OUTPUT_FILE, 'w') do |file|
-    file.puts episodes_to_json_by_arc(episodes).encode(Encoding::Windows_1251)
+  # File.open(File.join(REPO_NAME, JS_ARRAY), 'w') do |file|
+  #   file.puts episodes_to_json_by_arc(episodes).encode(Encoding::Windows_1251)
+  # end
+
+  File.open(File.join(REPO_NAME, JS_ARRAY), 'w') do |file|
+    file.puts episodes_to_json_by_arc(episodes)
   end
 
-  puts errors.join("\n")
+  errors_str = errors.join("\n")
+  reports_str = reports.join("\n\n")
+
+  puts errors_str
   puts "\n\n\n"
-  puts reports.join("\n\n")
+  puts reports_str
+
+  repo.add(JS_ARRAY)
+
+  return unless repo.status.any? { |file| !file.type.nil? }
+
+  repo.commit("Chrono update: #{reports.size} episodes\n\n" \
+              "#{errors_str}\n====\n\n" \
+              "#{reports_str}")
+  # repo.push
 end
 
 main if $PROGRAM_NAME == __FILE__

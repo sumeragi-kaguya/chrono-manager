@@ -19,13 +19,15 @@ require 'json'
 require 'net/http'
 require 'time'
 
-JS_CHARACTERS_URI = 'http://codegeass.ru/pages/chronology'
+JS_CHARACTERS_URI = 'https://codegeass.ru/pages/chronology'
 
 def read_js_characters
   chara_map = nil
 
-  Net::HTTP.start('codegeass.ru') do |http|
-    response = http.get(JS_CHARACTERS_URI)
+  Net::HTTP.start('codegeass.ru', use_ssl: true) do |http|
+    request = Net::HTTP::Get.new(JS_CHARACTERS_URI,
+                                 { 'User-Agent' => 'PostmanRuntime/7.26.8' })
+    response = http.request request
     body = response.body.encode(Encoding::UTF_8, Encoding::Windows_1251)
 
     chara_array = nil
@@ -60,6 +62,7 @@ CHARS_BACK = CHARS.invert.merge(
   'Arthur Lehman' => 289,
   'C.C' => 4,
   'C.C.' => 4,
+  'Charles zi Britannia' => 74,
   'Emiya Atsuko' => 216,
   'Emmerich Meyer' => 292,
   'Frederic Lennox' => 268,
@@ -69,7 +72,6 @@ CHARS_BACK = CHARS.invert.merge(
   'M.M.' => 258,
   'N.N' => 64,
   'N.N.' => 64,
-  'Wayne Stranszberg' => 301,
   'Айден' => 321,
   'Алекс Кросс' => 26,
   'Алексей Ланской' => 253,
@@ -79,10 +81,8 @@ CHARS_BACK = CHARS.invert.merge(
   'Асакура Юко' => 98,
   'Астрид Гудбранд' => 302,
   'Бен Кламски' => 278,
-  'Винсент Вульф' => 312,
   'Владимир Макаров' => 29,
   'Габриэлла Британская' => 299,
-  'Габриэль Паттел' => 270,
   'Гвиневра су Британия' => 36,
   'Гуан Янлин' => 281,
   'Джино Вайнберг' => 72,
@@ -93,7 +93,6 @@ CHARS_BACK = CHARS.invert.merge(
   'Илэйн' => 314,
   'Илейн' => 314,
   'Илейн Виллоу' => 314,
-  'Ир Лоу' => 319,
   'Сумераги Кагуя' => 49,
   'Каллен Кодзуки' => 3,
   'Каллен Козуки' => 3,
@@ -104,7 +103,6 @@ CHARS_BACK = CHARS.invert.merge(
   'Ким Сайрумов' => 300,
   'Кловис ла Британия' => 245,
   'Командующий Кобра' => 270,
-  'Константин Уайт' => 297,
   'Куруруги Сузаку' => 5,
   'Лелуш' => 1,
   'Ллойд Асплунд' => 10,
@@ -119,8 +117,6 @@ CHARS_BACK = CHARS.invert.merge(
   'Наннали' => 7,
   'Наннали Британская' => 7,
   'Одиссей ю Британия' => 48,
-  'Оками Киба' => 312,
-  'Киба Оками' => 312,
   'Павел Романов' => 188,
   'Пьер Мао' => 305,
   'Пьер Эжен Мао' => 305,
@@ -210,5 +206,6 @@ TIMEZONES = {
   'Семипалатинск' => 13,
   'Танзания' => 10,
   'Токио' => 16,
-  'Франция' => 8
+  'Франция' => 8,
+  'ЮАР' => 9
 }.freeze
